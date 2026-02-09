@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- HELPER FUNCTIONS ---
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    // Get the current user's profile from the single source of truth (/users)
+    function getMyData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isLoggedIn() 
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    // Check if a document belongs to the same school as the requester
+    function isSameSchool(schoolId) {
+      return isLoggedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && schoolId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId;
+    }
+
+    // --- 1. USERS COLLECTION ---
+    match /users/{userId} {
+      allow read: if isLoggedIn() && (
+        request.auth.uid == userId ||
+        (hasRole('school_admin') && isSameSchool(resource.data.schoolId))
+      );
+      // Allow self-onboarding
+      allow create, write: if isLoggedIn() && request.auth.uid == userId;
+      // Allow admin to delete teacher accounts in their school
+      allow delete: if hasRole('school_admin') && isSameSchool(resource.data.schoolId);
+    }
+
+    // --- 2. SCHOOLS ---
+    match /schools/{schoolId} {
+      allow create: if isLoggedIn();
+      allow read: if isLoggedIn() && (
+        resource.data.createdBy == request.auth.uid || 
+        isSameSchool(schoolId)
+      );
+      allow update: if hasRole('school_admin') && isSameSchool(schoolId);
+    }
+
+    // --- 3. TEACHERS (PROFILES) ---
+    match /teachers/{teacherId} {
+      allow read: if isLoggedIn() && (
+        isSameSchool(resource.data.schoolId) ||
+        request.auth.uid == resource.data.uid
+      );
+      // Transactional creation + Admin edits
+      allow create, update: if (hasRole('school_admin') && isSameSchool(request.resource.data.schoolId))
+        || (isLoggedIn() && request.auth.uid == teacherId);
+      // Allow admin cleanup
+      allow delete: if hasRole('school_admin') && isSameSchool(resource.data.schoolId);
+    }
+
+    // --- 4. CLASSES ---
+    match /classes/{classId} {
+      allow read: if isLoggedIn() && isSameSchool(resource.data.schoolId);
+      allow create, delete: if hasRole('school_admin') && isSameSchool(request.resource.data.schoolId);
+      allow update: if isLoggedIn()
+        && (
+          (hasRole('school_admin') && isSameSchool(request.resource.data.schoolId))
+          ||
+          // Transaction: Allow newly logged in teacher to link their UID
+          (request.auth.uid == request.resource.data.classTeacherId && isSameSchool(request.resource.data.schoolId))
+        );
+    }
+    
+    // --- 5. STUDENTS ---
+    match /students/{studentId} {
+      allow read: if isLoggedIn() && (
+         isSameSchool(resource.data.schoolId) ||
+         resource.data.parentUid == request.auth.uid
+      );
+      allow create: if (hasRole('school_admin') || hasRole('teacher')) && isSameSchool(request.resource.data.schoolId);
+      allow update: if (hasRole('school_admin') || hasRole('teacher')) && isSameSchool(resource.data.schoolId);
+      allow delete: if hasRole('school_admin') && isSameSchool(resource.data.schoolId);
+    }
+
+    // --- 6. INVITES (ONBOARDING) ---
+    match /invites/{inviteId} {
+      allow create: if hasRole('school_admin') && isSameSchool(request.resource.data.schoolId);
+      
+      allow read: if isLoggedIn()
+        && (
+          (hasRole('school_admin') && isSameSchool(resource.data.schoolId))
+          ||
+          (request.auth.token.email.lower() == resource.data.email.lower())
+        );
+
+      allow update: if isLoggedIn()
+        && (
+          (hasRole('school_admin') && isSameSchool(request.resource.data.schoolId))
+          ||
+          (request.auth.token.email.lower() == resource.data.email.lower() && 
+           resource.data.status == "pending" && 
+           request.resource.data.status == "accepted")
+        );
+
+      allow delete: if hasRole('school_admin') && isSameSchool(resource.data.schoolId);
+    }
+
+    // --- 7. ACADEMIC MODULES ---
+    match /weeklyUpdates/{updateId} {
+        allow read: if isLoggedIn() && isSameSchool(resource.data.schoolId);
+        allow create: if (hasRole('teacher') || hasRole('school_admin')) && isSameSchool(request.resource.data.schoolId);
+    }
+
+    match /tests/{testId} {
+        allow read: if isLoggedIn() && isSameSchool(resource.data.schoolId);
+        allow create: if (hasRole('teacher') || hasRole('school_admin')) && isSameSchool(request.resource.data.schoolId);
+    }
+
+    match /results/{resultId} {
+        allow read: if isLoggedIn() && isSameSchool(resource.data.schoolId);
+        allow create: if (hasRole('teacher') || hasRole('school_admin')) && isSameSchool(request.resource.data.schoolId);
+    }
+
+    match /{path=**}/syllabus/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if hasRole('school_admin') || hasRole('teacher');
+    }
+
+    match /aiContent/{docId} {
+      allow read: if isLoggedIn() && isSameSchool(resource.data.schoolId);
+      allow create: if (hasRole('teacher') || hasRole('school_admin')) && isSameSchool(request.resource.data.schoolId);
+      allow update: if (hasRole('teacher') || hasRole('school_admin')) && isSameSchool(resource.data.schoolId);
+      allow delete: if (hasRole('teacher') || hasRole('school_admin')) && isSameSchool(resource.data.schoolId);
+    }
+
+    match /announcements/{docId} {
+      allow read: if isLoggedIn() && isSameSchool(resource.data.schoolId);
+      allow create, update, delete: if (hasRole('teacher') || hasRole('school_admin')) && isSameSchool(request.resource.data.schoolId);
+    }
+  }
+}
