@@ -178,21 +178,40 @@ export const getTeachers = async (schoolId) => {
 export const updateTeacherDetails = async (schoolId, teacherId, updateData, assignedClassIds = []) => {
     if (!schoolId || !teacherId) throw new Error("Reference identifiers missing.");
 
-    // 1. Update the teacher profile in 'teachers' collection
+    // 1. Check if it's a Pending Invite
+    const inviteRef = doc(db, 'invites', teacherId);
+    const inviteSnap = await getDoc(inviteRef);
+
+    if (inviteSnap.exists()) {
+        // Update Pending Invite
+        await updateDoc(inviteRef, {
+            name: updateData.name,
+            subjects: updateData.subjects,
+            assignedClassIds: assignedClassIds,
+            updatedAt: serverTimestamp()
+        });
+        return true;
+    }
+
+    // 2. Active Teacher Flow (Use setDoc merge to be safe)
     const teacherRef = doc(db, 'teachers', teacherId);
-    await updateDoc(teacherRef, {
+    await setDoc(teacherRef, {
         name: updateData.name,
         subjects: updateData.subjects,
         updatedAt: serverTimestamp()
-    });
+    }, { merge: true });
 
-    // 2. Unassign all classes currently linked to this teacher
+    // 1. Also ensure user document reflects name if needed
+    await setDoc(doc(db, 'users', teacherId), { name: updateData.name }, { merge: true });
+
+    // 2. Sync Classes
+    // Unassign old
     const q = query(collection(db, 'classes'), where("classTeacherId", "==", teacherId));
     const snap = await getDocs(q);
     const unassignPromises = snap.docs.map(c => updateDoc(doc(db, 'classes', c.id), { classTeacherId: null }));
     await Promise.all(unassignPromises);
 
-    // 3. Assign new classes
+    // Assign new
     const assignPromises = assignedClassIds.map(classId =>
         updateDoc(doc(db, 'classes', classId), { classTeacherId: teacherId })
     );

@@ -66,7 +66,13 @@ const TeachersModule = () => {
         setValue('subjects', teacher.subjects?.join(', ') || '');
 
         // Final Classes assigned to this teacher
-        const assignedIds = classes.filter(c => c.classTeacherId === (teacher.uid || teacher.id)).map(c => c.id);
+        let assignedIds = [];
+        if (teacher.status === 'pending') {
+            assignedIds = teacher.assignedClassIds || [];
+        } else {
+            assignedIds = classes.filter(c => c.classTeacherId === (teacher.uid || teacher.id)).map(c => c.id);
+        }
+
         setSelectedClassIds(assignedIds);
         setIsModalOpen(true);
     };
