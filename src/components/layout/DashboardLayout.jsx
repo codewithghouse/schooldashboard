@@ -43,6 +43,20 @@ const DashboardLayout = ({ role: requiredRole = 'school' }) => {
     const location = useLocation();
     const navigate = useNavigate();
 
+    // --- INTERNAL ROUTE GUARD ---
+    useEffect(() => {
+        if (!userData && !userRole) return; // Wait for auth to load
+
+        if (userRole !== requiredRole) {
+            console.error(`🚫 Access Denied: Role ${userRole} tried to access ${requiredRole} dashboard.`);
+            // Redirect to their correct dashboard
+            if (userRole === 'admin') navigate('/school/dashboard');
+            else if (userRole === 'teacher') navigate('/teacher/dashboard');
+            else if (userRole === 'parent') navigate('/parent/dashboard');
+            else navigate('/login');
+        }
+    }, [userRole, requiredRole, navigate, userData]);
+
     const handleClassChange = (e) => {
         setActiveClass(e.target.value);
     };
