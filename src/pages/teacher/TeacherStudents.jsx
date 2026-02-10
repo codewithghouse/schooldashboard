@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useClass } from '../../context/ClassContext';
-import { addStudent, getStudents } from '../../lib/services';
-import { Plus, Users, Search, Mail, Clock, Loader2, AlertCircle, BookOpen } from 'lucide-react';
+import { addStudent, getStudents, bulkAddStudents } from '../../lib/services';
+import { Plus, Users, Search, Mail, Clock, Loader2, AlertCircle, BookOpen, FileUp, Download, FileSpreadsheet } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import * as XLSX from 'xlsx';
 
 const TeacherStudents = () => {
     const { schoolId } = useAuth();
@@ -12,6 +13,7 @@ const TeacherStudents = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [importing, setImporting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
     const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm();
@@ -59,6 +61,61 @@ const TeacherStudents = () => {
         }
     };
 
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            setImporting(true);
+            try {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const data = XLSX.utils.sheet_to_json(ws);
+
+                // Expected format: Name, ParentEmail
+                const formattedStudents = data.map(row => ({
+                    name: row.Name || row.name || '',
+                    parentEmail: row['Parent Email'] || row.parentEmail || row.email || '',
+                    classId: activeClassId,
+                    grade: activeClass?.name.replace(/\D/g, '') || "0",
+                    section: activeClass?.section || "Common"
+                })).filter(s => s.name && s.parentEmail);
+
+                if (formattedStudents.length === 0) {
+                    alert("No valid student data found in Excel. Please use the template.");
+                    return;
+                }
+
+                if (window.confirm(`Found ${formattedStudents.length} students. Start bulk enrollment & parent activation?`)) {
+                    await bulkAddStudents(schoolId, formattedStudents);
+                    alert(`Successfully enrolled ${formattedStudents.length} students and dispatched parent invites!`);
+                    fetchStudents();
+                }
+            } catch (error) {
+                console.error("Import Error:", error);
+                alert("Failed to parse Excel file.");
+            } finally {
+                setImporting(false);
+                e.target.value = ''; // Reset input
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const downloadTemplate = () => {
+        const template = [
+            { "Name": "Aarav Sharma", "Parent Email": "parent1@example.com" },
+            { "Name": "Sara Khan", "Parent Email": "parent2@example.com" }
+        ];
+        const ws = XLSX.utils.json_to_sheet(template);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        XLSX.writeFile(wb, "Student_Import_Template.xlsx");
+    };
+
     const filteredStudents = students.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.parentEmail.toLowerCase().includes(searchTerm.toLowerCase())
@@ -88,6 +145,29 @@ const TeacherStudents = () => {
                 )}
 
                 <div className="flex gap-4">
+                    <button
+                        onClick={downloadTemplate}
+                        disabled={!activeClassId}
+                        className="flex items-center gap-2 px-6 py-4 rounded-[24px] bg-white border border-gray-100 text-gray-500 font-bold text-xs uppercase tracking-widest hover:bg-gray-50 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                    >
+                        <Download className="w-4 h-4" /> Template
+                    </button>
+
+                    <label className={`flex items-center gap-2 px-6 py-4 rounded-[24px] transition-all shadow-lg font-black text-xs uppercase tracking-widest cursor-pointer active:scale-95 ${!activeClassId || importing
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 shadow-none'
+                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        }`}>
+                        {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+                        {importing ? 'Importing...' : 'Excel Import'}
+                        <input
+                            type="file"
+                            accept=".xlsx, .xls, .csv"
+                            className="hidden"
+                            onChange={handleFileUpload}
+                            disabled={!activeClassId || importing}
+                        />
+                    </label>
+
                     <button
                         onClick={() => setIsModalOpen(true)}
                         disabled={!activeClassId}
