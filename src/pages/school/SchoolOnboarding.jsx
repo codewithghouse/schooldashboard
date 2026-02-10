@@ -11,6 +11,7 @@ const SchoolOnboarding = () => {
     const [formData, setFormData] = useState({
         name: '',
         city: '',
+        state: '',
         address: ''
     });
 
@@ -81,6 +82,8 @@ const SchoolOnboarding = () => {
                                     required
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-50 outline-none transition-all"
                                     placeholder="Ex. NY"
+                                    value={formData.state}
+                                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                                 />
                             </div>
                         </div>
