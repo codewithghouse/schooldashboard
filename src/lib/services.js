@@ -130,6 +130,32 @@ export const getTeachers = async (schoolId) => {
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+export const updateTeacherDetails = async (schoolId, teacherId, updateData, assignedClassIds = []) => {
+    if (!schoolId || !teacherId) throw new Error("Reference identifiers missing.");
+
+    // 1. Update the teacher profile in 'teachers' collection
+    const teacherRef = doc(db, 'teachers', teacherId);
+    await updateDoc(teacherRef, {
+        name: updateData.name,
+        subjects: updateData.subjects,
+        updatedAt: serverTimestamp()
+    });
+
+    // 2. Unassign all classes currently linked to this teacher
+    const q = query(collection(db, 'classes'), where("classTeacherId", "==", teacherId));
+    const snap = await getDocs(q);
+    const unassignPromises = snap.docs.map(c => updateDoc(doc(db, 'classes', c.id), { classTeacherId: null }));
+    await Promise.all(unassignPromises);
+
+    // 3. Assign new classes
+    const assignPromises = assignedClassIds.map(classId =>
+        updateDoc(doc(db, 'classes', classId), { classTeacherId: teacherId })
+    );
+    await Promise.all(assignPromises);
+
+    return true;
+};
+
 export const deleteTeacher = async (schoolId, teacherUid) => {
     // Unassign classes
     const classesQuery = query(collection(db, 'classes'), where("classTeacherId", "==", teacherUid));
