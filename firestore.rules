@@ -53,7 +53,15 @@ service cloud.firestore {
 
     /* STUDENTS — FINAL FIX */
     match /students/{id} {
+      // Admin Full Access
       allow read, write: if isSignedIn() && isAdmin();
+      
+      // Teacher Access (Read/Write for their school)
+      allow read, write: if isSignedIn() && (userDoc().data.role == "teacher" && userDoc().data.schoolId == resource.data.schoolId);
+      allow create: if isSignedIn() && userDoc().data.role == "teacher"; // Allow teacher to enroll students
+
+      // Parent Access (Read ONLY their child)
+      allow read: if isSignedIn() && (userDoc().data.role == "parent" && resource.data.parentUid == request.auth.uid);
     }
 
     /* INVITES — FINAL FIX */

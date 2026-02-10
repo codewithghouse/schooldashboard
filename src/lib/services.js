@@ -195,8 +195,13 @@ export const getStudents = async (schoolId, classId = null) => {
 };
 
 // --- Parent Services ---
-export const getMyStudents = async (parentEmail) => {
-    const q = query(collection(db, 'students'), where("parentEmail", "==", parentEmail));
+export const getMyStudents = async (parentEmail, parentUid = null) => {
+    let q;
+    if (parentUid) {
+        q = query(collection(db, 'students'), where("parentUid", "==", parentUid));
+    } else {
+        q = query(collection(db, 'students'), where("parentEmail", "==", parentEmail));
+    }
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };

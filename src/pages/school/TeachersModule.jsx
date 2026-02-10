@@ -11,6 +11,8 @@ const TeachersModule = () => {
     const [loadingClasses, setLoadingClasses] = useState(false);
     const [selectedClassIds, setSelectedClassIds] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+    const [newClass, setNewClass] = useState({ name: '', section: '', subject: '' });
     const { register, handleSubmit, reset } = useForm();
 
     useEffect(() => {
@@ -32,6 +34,27 @@ const TeachersModule = () => {
             console.error("Error loading data:", error);
         } finally {
             setLoadingClasses(false);
+        }
+    };
+
+    const handleQuickAddClass = async () => {
+        if (!newClass.name || !newClass.section) return;
+        try {
+            const classRef = await addClass(schoolId, {
+                name: newClass.name,
+                section: newClass.section,
+                grade: newClass.name.replace(/\D/g, '') || "0",
+                subject: newClass.subject || "General",
+                classTeacherId: null
+            });
+            const createdClass = { id: classRef.id, ...newClass, grade: newClass.name.replace(/\D/g, '') || "0" };
+            setClasses([...classes, createdClass]);
+            setSelectedClassIds([...selectedClassIds, classRef.id]);
+            setNewClass({ name: '', section: '', subject: '' });
+            setIsQuickAddOpen(false);
+        } catch (error) {
+            console.error(error);
+            alert("Error creating custom class");
         }
     };
 
@@ -171,30 +194,76 @@ const TeachersModule = () => {
                                     <input {...register("subjects", { required: true })} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-blue-300 font-bold text-sm" placeholder="e.g. Advanced Calculus, Quantum Mechanics" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Contextual Workload (Classes)</label>
-                                    <select
-                                        multiple
-                                        value={selectedClassIds}
-                                        onChange={(e) =>
-                                            setSelectedClassIds(
-                                                Array.from(e.target.selectedOptions, o => o.value)
-                                            )
-                                        }
-                                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl h-40 outline-none focus:bg-white focus:border-blue-300 font-bold text-sm"
-                                    >
+                                    <div className="flex justify-between items-center mb-4">
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 italic">Contextual Workload (Classes)</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsQuickAddOpen(!isQuickAddOpen)}
+                                            className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline"
+                                        >
+                                            {isQuickAddOpen ? '- Close Quick Add' : '+ Create Custom Class'}
+                                        </button>
+                                    </div>
+
+                                    {isQuickAddOpen && (
+                                        <div className="bg-gray-50 p-6 rounded-3xl border border-dashed border-primary-200 mb-6 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <input
+                                                    value={newClass.name}
+                                                    onChange={(e) => setNewClass({ ...newClass, name: e.target.value })}
+                                                    placeholder="Class (e.g. 10)"
+                                                    className="px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm font-bold"
+                                                />
+                                                <input
+                                                    value={newClass.section}
+                                                    onChange={(e) => setNewClass({ ...newClass, section: e.target.value })}
+                                                    placeholder="Section (e.g. A)"
+                                                    className="px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm font-bold"
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleQuickAddClass}
+                                                className="w-full py-3 bg-primary-100 text-primary-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-200 transition-colors"
+                                            >
+                                                Add & Select Class
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto p-1">
                                         {loadingClasses ? (
-                                            <option disabled>Syncing Workloads...</option>
+                                            <div className="col-span-2 text-center py-4 text-gray-300 font-bold italic text-sm">Syncing academic contexts...</div>
                                         ) : classes.length === 0 ? (
-                                            <option disabled>No classes defined.</option>
+                                            <div className="col-span-2 text-center py-4 text-gray-300 font-bold italic text-sm">No regular classes defined.</div>
                                         ) : (
                                             classes.map(cls => (
-                                                <option key={cls.id} value={cls.id}>
-                                                    Grade {cls.grade}{cls.section} — {cls.subject}
-                                                </option>
+                                                <button
+                                                    key={cls.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (selectedClassIds.includes(cls.id)) {
+                                                            setSelectedClassIds(selectedClassIds.filter(id => id !== cls.id));
+                                                        } else {
+                                                            setSelectedClassIds([...selectedClassIds, cls.id]);
+                                                        }
+                                                    }}
+                                                    className={`px-4 py-3 rounded-2xl border text-left transition-all ${selectedClassIds.includes(cls.id)
+                                                            ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-500/20'
+                                                            : 'bg-white border-gray-100 text-gray-600 hover:border-primary-200 hover:bg-primary-50/30'
+                                                        }`}
+                                                >
+                                                    <div className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${selectedClassIds.includes(cls.id) ? 'text-primary-100' : 'text-gray-400'}`}>
+                                                        Grade {cls.grade || cls.name}
+                                                    </div>
+                                                    <div className="text-xs font-black italic tracking-tight truncate">
+                                                        Section {cls.section} – {cls.subject || 'All'}
+                                                    </div>
+                                                </button>
                                             ))
                                         )}
-                                    </select>
-                                    <p className="text-[10px] text-gray-400 mt-2 italic font-medium">Hold Ctrl/Cmd to select multiple academic contexts.</p>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-4 italic font-medium px-1">Selected academic contexts will be automatically linked to this faculty profile upon activation.</p>
                                 </div>
                                 <div className="flex justify-end gap-3 pt-6">
                                     <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-gray-400 font-black uppercase text-[10px] tracking-widest hover:bg-gray-50 rounded-xl transition-all">Cancel</button>

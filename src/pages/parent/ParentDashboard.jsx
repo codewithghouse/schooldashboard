@@ -24,7 +24,7 @@ const ParentDashboard = () => {
         const loadParentData = async () => {
             if (user?.email) {
                 try {
-                    const myStudents = await getMyStudents(user.email);
+                    const myStudents = await getMyStudents(user.email, user.uid);
                     setStudents(myStudents);
 
                     if (userData?.schoolId) {
