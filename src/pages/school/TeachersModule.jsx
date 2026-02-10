@@ -41,21 +41,31 @@ const TeachersModule = () => {
     const handleQuickAddClass = async () => {
         if (!newClass.name || !newClass.section) return;
         try {
+            const rawGrade = newClass.name.replace(/\D/g, '');
             const classRef = await addClass(schoolId, {
-                name: newClass.name,
-                section: newClass.section,
-                grade: newClass.name.replace(/\D/g, '') || "0",
+                name: newClass.name.startsWith('Class') ? newClass.name : `Class ${newClass.name}`,
+                section: newClass.section.toUpperCase(),
+                grade: parseInt(rawGrade) || 0,
                 subject: newClass.subject || "General",
                 classTeacherId: null
             });
-            const createdClass = { id: classRef.id, ...newClass, grade: newClass.name.replace(/\D/g, '') || "0" };
+
+            const createdClass = {
+                id: classRef.id,
+                ...newClass,
+                name: newClass.name.startsWith('Class') ? newClass.name : `Class ${newClass.name}`,
+                section: newClass.section.toUpperCase(),
+                grade: parseInt(rawGrade) || 0
+            };
+
             setClasses([...classes, createdClass]);
             setSelectedClassIds([...selectedClassIds, classRef.id]);
             setNewClass({ name: '', section: '', subject: '' });
             setIsQuickAddOpen(false);
+            alert("Custom class created and selected!");
         } catch (error) {
-            console.error(error);
-            alert("Error creating custom class");
+            console.error("Custom Class Error:", error);
+            alert("Failed to create class: " + error.message);
         }
     };
 

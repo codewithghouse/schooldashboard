@@ -18,11 +18,11 @@ service cloud.firestore {
       return userDoc().data.schoolId;
     }
 
-    /* USERS */
+    /* USERS — ADMIN OVERRIDE */
     match /users/{uid} {
-      allow read, create: if isSignedIn() && request.auth.uid == uid;
-      allow update: if isSignedIn() && request.auth.uid == uid; 
-      allow list: if isSignedIn() && isAdmin(); // Allow admins to search users (for email collision check)
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isSignedIn() && isAdmin(); 
       allow delete: if false;
     }
 
