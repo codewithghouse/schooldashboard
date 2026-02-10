@@ -6,33 +6,35 @@ import {
     getStudentResults,
     getWeeklyUpdates,
     getTeacher,
-    getClass
+    getClass,
+    getTickets,
+    createTicket
 } from '../../lib/services';
 import {
-    Users,
-    Building2,
-    BookOpen,
+    LayoutDashboard,
     GraduationCap,
-    Loader2,
+    BookOpen,
+    LifeBuoy,
+    User,
     Calendar,
     Award,
-    ChevronRight,
-    ArrowRight,
+    Clock,
     TrendingUp,
-    Target,
-    Activity,
-    UserCheck,
+    ChevronRight,
+    MessageSquare,
     AlertCircle,
     CheckCircle2,
-    Sparkles,
-    Hash,
-    MessageSquare,
-    Zap,
-    Clock
+    Loader2,
+    Building2,
+    Target,
+    Activity,
+    Plus,
+    X
 } from 'lucide-react';
 
 const ParentDashboard = () => {
     const { user, userData, schoolId: authSchoolId } = useAuth();
+    const [activeTab, setActiveTab] = useState('home');
     const [students, setStudents] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -41,6 +43,9 @@ const ParentDashboard = () => {
     const [updates, setUpdates] = useState([]);
     const [teacher, setTeacher] = useState(null);
     const [classInfo, setClassInfo] = useState(null);
+    const [tickets, setTickets] = useState([]);
+    const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+    const [ticketData, setTicketData] = useState({ subject: '', message: '', priority: 'medium' });
 
     const sId = authSchoolId || userData?.schoolId;
 
@@ -57,6 +62,8 @@ const ParentDashboard = () => {
                     const school = await getSchool(sId);
                     setSchoolInfo(school);
                 }
+                const myTickets = await getTickets(sId, 'parent', user.uid);
+                setTickets(myTickets.sort((a, b) => b.createdAt?.toDate() - a.createdAt?.toDate()));
             } catch (error) {
                 console.error("Dashboard Load Error:", error);
             } finally {
@@ -96,336 +103,356 @@ const ParentDashboard = () => {
         }
     };
 
+    const handleCreateTicket = async (e) => {
+        e.preventDefault();
+        try {
+            await createTicket(sId, {
+                ...ticketData,
+                userId: user.uid,
+                userName: userData?.name || user.email,
+                userEmail: user.email,
+                role: 'parent'
+            });
+            const myTickets = await getTickets(sId, 'parent', user.uid);
+            setTickets(myTickets.sort((a, b) => b.createdAt?.toDate() - a.createdAt?.toDate()));
+            setIsTicketModalOpen(false);
+            setTicketData({ subject: '', message: '', priority: 'medium' });
+            alert("Support ticket raised successfully!");
+        } catch (error) {
+            console.error(error);
+            alert("Error raising ticket");
+        }
+    };
+
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-                <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
-                <p className="text-[10px] font-black tracking-[0.3em] text-gray-400 uppercase">Synchronizing Child Intelligence...</p>
+            <div className="flex flex-col items-center justify-center min-h-screen bg-white">
+                <Loader2 className="w-16 h-16 text-primary-600 animate-spin mb-6" />
+                <p className="text-xs font-black tracking-[0.4em] text-gray-400 uppercase italic">Initializing Digital Gateway...</p>
             </div>
         );
     }
 
-    const subjectPerformance = getPerformanceBySubject(results);
-    const focusAreas = getFocusAreas(results);
-
     return (
-        <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000 pb-20 px-4 md:px-0">
-
-            {/* Header: Child Selector & Identity */}
-            <div className="flex flex-col lg:flex-row gap-8 items-center justify-between">
-                <div className="flex gap-4 p-2 bg-white rounded-[32px] border border-gray-100 shadow-sm">
-                    {students.map(std => (
-                        <button
-                            key={std.id}
-                            onClick={() => setSelectedStudent(std)}
-                            className={`px-8 py-4 rounded-[24px] text-xs font-black uppercase tracking-widest transition-all ${selectedStudent?.id === std.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
-                        >
-                            {std.name}
-                        </button>
-                    ))}
-                    {students.length === 0 && (
-                        <p className="px-6 py-4 text-xs font-bold text-gray-400">No linked student records found.</p>
-                    )}
-                </div>
-                <div className="flex items-center gap-4 bg-white px-8 py-4 rounded-[32px] border border-gray-100 shadow-sm">
-                    <Building2 className="w-5 h-5 text-indigo-600" />
-                    <div>
-                        <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest leading-none mb-1">Institution</p>
-                        <p className="text-sm font-black text-gray-900 tracking-tight">{schoolInfo?.name || 'AcademiVis School'}</p>
+        <div className="min-h-screen bg-[#FDFDFF] text-gray-900 pb-20">
+            {/* Child Selector Overlay */}
+            <div className="max-w-7xl mx-auto px-4 md:px-0 pt-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+                    <div className="flex bg-white p-1.5 rounded-[32px] border border-gray-100 shadow-sm overflow-x-auto no-scrollbar max-w-full">
+                        {students.map(std => (
+                            <button
+                                key={std.id}
+                                onClick={() => setSelectedStudent(std)}
+                                className={`px-8 py-3.5 rounded-[24px] text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${selectedStudent?.id === std.id ? 'bg-primary-600 text-white shadow-xl shadow-primary-600/20' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                            >
+                                {std.name}
+                            </button>
+                        ))}
                     </div>
-                </div>
-            </div>
-
-            {/* Profile & Mentor Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-8 bg-white rounded-[50px] p-12 md:p-16 border border-gray-100 shadow-xl relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50 rounded-full blur-[100px] -mr-20 -mt-20 opacity-60 group-hover:scale-110 transition-transform duration-1000"></div>
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-8">
-                            <span className="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">Grade {selectedStudent?.grade} – {selectedStudent?.section}</span>
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Enrollment</span>
-                            </div>
-                        </div>
-                        <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter italic leading-none mb-4">
-                            {selectedStudent?.name}
-                        </h1>
-                        <p className="text-xl text-gray-400 font-medium max-w-2xl leading-relaxed italic">
-                            “Monitoring every milestone. Transparent access to academic growth and teacher observations.”
-                        </p>
-                    </div>
-                </div>
-
-                <div className="lg:col-span-4 bg-gray-900 rounded-[50px] p-12 text-white shadow-2xl relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-10 flex items-center gap-3">
-                        <UserCheck className="w-5 h-5" /> Class Mentor
-                    </h4>
-
-                    <div className="flex items-center gap-6 mb-10">
-                        <div className="w-20 h-20 bg-white/10 rounded-[30px] border border-white/10 flex items-center justify-center text-3xl font-black text-indigo-400 shadow-inner group-hover:scale-110 transition-transform">
-                            {teacher?.name?.substring(0, 1) || 'T'}
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-2xl font-black tracking-tight italic">{teacher?.name || 'Assigned Soon'}</p>
-                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Lead Educator</p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <button className="w-full py-5 bg-white text-gray-900 rounded-[28px] font-black text-[11px] uppercase tracking-[0.3em] hover:bg-indigo-400 transition-all flex items-center justify-center gap-3 italic">
-                            Contact Teacher <MessageSquare className="w-4 h-4" />
-                        </button>
-                        <p className="text-[9px] text-gray-500 text-center font-bold uppercase tracking-widest">Secure internal gateway active</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Modular Content Sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-
-                {/* Section 1: Subject Performance (Left Main) */}
-                <div className="lg:col-span-8 space-y-10">
-                    <div className="bg-white rounded-[50px] border border-gray-100 shadow-lg p-12 hover:border-indigo-100 transition-all">
-                        <SectionHeader
-                            icon={TrendingUp}
-                            title="Subject Analytics"
-                            label="Historical Milestone Performance"
-                        />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-12">
-                            {subjectPerformance.length > 0 ? subjectPerformance.map((sub, i) => (
-                                <PerformanceBar key={i} name={sub.name} percentage={sub.percentage} />
-                            )) : (
-                                <EmptyState message="No performance metrics recorded yet." icon={TrendingUp} />
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Section 2: Weekly Narratives (Timeline) */}
-                    <div className="bg-white rounded-[50px] border border-gray-100 shadow-lg p-12 hover:border-emerald-100 transition-all">
-                        <SectionHeader
-                            icon={Activity}
-                            title="Learning Narratives"
-                            label="Teacher Observations & Weekly Progress"
-                        />
-                        <div className="space-y-8">
-                            {updates.length > 0 ? updates.slice(0, 4).map((upd, i) => (
-                                <UpdateCard key={i} update={upd} index={updates.length - i} />
-                            )) : (
-                                <EmptyState message="No narratives provided for this period." icon={BookOpen} />
-                            )}
+                    <div className="flex items-center gap-4 bg-white px-8 py-4 rounded-[32px] border border-gray-100 shadow-sm">
+                        <Building2 className="w-5 h-5 text-primary-600" />
+                        <div>
+                            <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest leading-none mb-1">Academic Partner</p>
+                            <p className="text-sm font-black text-gray-900 tracking-tight italic">{schoolInfo?.name || 'AcademiVis School'}</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Section 3: Growth & Results (Right Sidebar) */}
-                <div className="lg:col-span-4 space-y-10">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    {/* Navigation Sidebar */}
+                    <nav className="lg:col-span-3 space-y-3">
+                        <NavItem icon={LayoutDashboard} label="Home Overview" active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+                        <NavItem icon={GraduationCap} label="Academic Progress" active={activeTab === 'results'} onClick={() => setActiveTab('results')} />
+                        <NavItem icon={BookOpen} label="Learning Timeline" active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} />
+                        <NavItem icon={Clock} label="Attendance Summary" active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} demo />
+                        <NavItem icon={LifeBuoy} label="Support & Help" active={activeTab === 'support'} onClick={() => setActiveTab('support')} />
+                    </nav>
 
-                    {/* Focus Targets */}
-                    <div className="bg-gray-50 rounded-[50px] border border-gray-100 p-10 group">
-                        <SectionHeader
-                            icon={Target}
-                            title="Growth Points"
-                            label="Personalized Focus Areas"
-                        />
-                        <div className="space-y-6 mt-10">
-                            {focusAreas.length > 0 ? focusAreas.map((area, i) => (
-                                <FocusArea key={i} title={area} />
-                            )) : (
-                                <div className="py-12 bg-white rounded-3xl text-center border border-dashed border-gray-200">
-                                    <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-3" />
-                                    <p className="text-[10px] font-black uppercase text-gray-400">Everything looks solid.</p>
+                    {/* Main Content Area */}
+                    <main className="lg:col-span-9 animate-in fade-in slide-in-from-right-4 duration-700">
+                        {activeTab === 'home' && (
+                            <div className="space-y-10">
+                                {/* Hero Card */}
+                                <div className="bg-white rounded-[50px] p-12 border border-gray-100 shadow-xl relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-96 h-96 bg-primary-50 rounded-full blur-[100px] -mr-20 -mt-20 opacity-60"></div>
+                                    <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter italic leading-none mb-4 relative z-10">
+                                        Hello, {user.displayName || 'Parent'}
+                                    </h1>
+                                    <p className="text-xl text-gray-400 font-medium max-w-2xl italic relative z-10">
+                                        Monitor {selectedStudent?.name}'s academic trajectory and school milestones in real-time.
+                                    </p>
                                 </div>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* Quick Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <MiniStat
-                            icon={Zap}
-                            label="Tests Taken"
-                            value={results.length}
-                            color="indigo"
-                        />
-                        <MiniStat
-                            icon={Award}
-                            label="Consistency"
-                            value="High"
-                            color="green"
-                        />
-                    </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {/* Latest Achievement */}
+                                    <div className="bg-white p-10 rounded-[44px] border border-gray-100 shadow-lg">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Latest Assessment</h4>
+                                            <Award className="w-5 h-5 text-primary-600" />
+                                        </div>
+                                        {results.length > 0 ? (
+                                            <div>
+                                                <p className="text-xs font-black text-primary-600 uppercase tracking-widest mb-2">{results[0].subject}</p>
+                                                <h3 className="text-4xl font-black text-gray-900 italic tracking-tighter mb-4">{results[0].marksScored} / {results[0].totalMarks}</h3>
+                                                <p className="text-xs text-gray-400 font-medium">Logged on {results[0].createdAt?.toDate().toLocaleDateString()}</p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-400 italic">Waiting for initial assessment scores...</p>
+                                        )}
+                                    </div>
 
-                    {/* Assessment Registry */}
-                    <div className="bg-white rounded-[50px] border border-gray-100 shadow-xl p-10">
-                        <SectionHeader
-                            icon={Hash}
-                            title="Assessment Registry"
-                            label="Unit-wise Scored Records"
-                        />
-                        <div className="space-y-4 mt-8">
-                            {results.slice(0, 6).map((res, i) => (
-                                <ResultRow key={i} result={res} />
-                            ))}
-                            {results.length === 0 && <p className="text-center py-10 text-xs italic text-gray-400 uppercase font-black">Waiting for results...</p>}
+                                    {/* Latest Perspective */}
+                                    <div className="bg-gray-900 p-10 rounded-[44px] text-white shadow-xl relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                                        <div className="flex items-center justify-between mb-8">
+                                            <h4 className="text-[10px] font-black text-primary-400 uppercase tracking-widest italic">Latest Narrative</h4>
+                                            <MessageSquare className="w-5 h-5 text-primary-400" />
+                                        </div>
+                                        {updates.length > 0 ? (
+                                            <div>
+                                                <p className="text-sm italic font-medium text-gray-300 line-clamp-3 mb-6">“{updates[0].generalNotes}”</p>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-black uppercase">{teacher?.name?.charAt(0)}</div>
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Mentored by {teacher?.name}</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-500 italic">No teaching updates recorded for this week.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'results' && (
+                            <div className="bg-white rounded-[50px] border border-gray-100 shadow-xl overflow-hidden">
+                                <div className="p-10 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
+                                    <div>
+                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Assessment Registry</h2>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Full Academic Scored History</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary-600 shadow-sm">
+                                        <GraduationCap className="w-6 h-6" />
+                                    </div>
+                                </div>
+                                <div className="p-10">
+                                    <div className="space-y-4">
+                                        {results.map((res, i) => (
+                                            <div key={i} className="flex items-center justify-between p-6 rounded-[32px] bg-white border border-gray-100 hover:border-primary-200 transition-all hover:shadow-xl hover:shadow-primary-600/5 group">
+                                                <div className="flex items-center gap-6">
+                                                    <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center font-black italic text-lg text-primary-600 border border-gray-100 group-hover:bg-primary-600 group-hover:text-white transition-all">
+                                                        {Math.round((res.marksScored / res.totalMarks) * 100)}%
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-black text-gray-900 tracking-tight italic uppercase">{res.subject}</p>
+                                                        <div className="flex items-center gap-2 mt-1 opacity-50">
+                                                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest">{res.createdAt?.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-2xl font-black text-gray-900 tracking-tighter italic">{res.marksScored}<span className="text-gray-300">/{res.totalMarks}</span></p>
+                                                    <p className="text-[9px] font-black text-primary-500 uppercase tracking-widest mt-0.5">Scored Registry</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {results.length === 0 && <EmptyState icon={TrendingUp} title="No Records" desc="Assessment results will appear here as soon as they are published by the class mentor." />}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'timeline' && (
+                            <div className="space-y-8">
+                                <div className="flex items-center gap-4 px-4">
+                                    <BookOpen className="w-6 h-6 text-primary-600" />
+                                    <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Learning Journey</h2>
+                                </div>
+                                <div className="space-y-8 relative">
+                                    <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-100 hidden md:block"></div>
+                                    {updates.map((upd, i) => (
+                                        <div key={i} className="relative md:pl-20 animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${i * 100}ms` }}>
+                                            <div className="hidden md:flex absolute left-5 top-8 w-6 h-6 bg-white border-2 border-primary-600 rounded-full items-center justify-center z-10 shadow-lg shadow-primary-600/20">
+                                                <div className="w-2 h-2 bg-primary-600 rounded-full"></div>
+                                            </div>
+                                            <div className="bg-white rounded-[44px] p-10 border border-gray-100 shadow-lg hover:shadow-2xl transition-all hover:bg-white/50">
+                                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1 italic">Week of {upd.createdAt?.toDate().toLocaleDateString()}</p>
+                                                        <h3 className="text-2xl font-black text-gray-900 italic tracking-tight">{upd.subject || 'Unit Report'}</h3>
+                                                    </div>
+                                                    <div className="px-5 py-2.5 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">
+                                                        Milestone: {upd.chapterCompleted}
+                                                    </div>
+                                                </div>
+                                                <p className="text-lg font-medium text-gray-500 leading-relaxed italic border-l-4 border-primary-200 pl-8 mb-8">
+                                                    “{upd.generalNotes}”
+                                                </p>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-4">
+                                                        <Activity className="w-5 h-5 text-primary-500" />
+                                                        <div>
+                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Homework Assigned</p>
+                                                            <p className="text-xs font-black text-gray-800 tracking-tight">{upd.homeworkAssigned || 'Standard Review'}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="p-4 bg-primary-50 rounded-2xl border border-primary-100 flex items-center gap-4 transition-colors">
+                                                        <Target className="w-5 h-5 text-primary-600" />
+                                                        <div>
+                                                            <p className="text-[9px] font-black text-primary-400 uppercase tracking-widest leading-none mb-1">Next Topic</p>
+                                                            <p className="text-xs font-black text-primary-900 tracking-tight">{upd.nextTopic || 'Finalizing Module'}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {updates.length === 0 && <EmptyState icon={BookOpen} title="Timeline Empty" desc="Milestone updates and teaching narratives will be logged here periodically." />}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'attendance' && (
+                            <div className="bg-white rounded-[50px] p-16 border border-gray-100 shadow-xl text-center">
+                                <div className="w-24 h-24 bg-primary-50 rounded-[40px] flex items-center justify-center text-primary-600 mx-auto mb-10 shadow-inner">
+                                    <Clock className="w-10 h-10" />
+                                </div>
+                                <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter mb-4">Attendance Synchronization</h2>
+                                <p className="text-gray-400 font-medium max-w-sm mx-auto mb-12 italic italic leading-relaxed">
+                                    Live daily attendance logging and notifications for {selectedStudent?.name} are being calibrated. Check back soon for the visual calendar.
+                                </p>
+                                <div className="inline-flex items-center gap-4 px-8 py-3.5 bg-gray-50 rounded-full border border-gray-100">
+                                    <div className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse"></div>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Feature Under Calibration</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'support' && (
+                            <div className="space-y-10">
+                                <div className="flex justify-between items-center px-4">
+                                    <div>
+                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Support Gateway</h2>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Direct Communication with Institution</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsTicketModalOpen(true)}
+                                        className="px-10 py-5 bg-gray-900 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl hover:bg-primary-600 transition-all flex items-center gap-3 italic"
+                                    >
+                                        New Inquiry <Plus className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-6">
+                                    {tickets.map((t, i) => (
+                                        <div key={i} className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-lg hover:border-primary-200 transition-all">
+                                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                                                <div className="flex items-center gap-5">
+                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black italic shadow-inner ${t.status === 'open' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                                                        {t.status === 'open' ? '?' : '✓'}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-2xl font-black text-gray-900 tracking-tight italic">{t.subject}</h4>
+                                                        <div className="flex items-center gap-3 mt-1">
+                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.ticketNo}</span>
+                                                            <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
+                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{t.createdAt?.toDate().toLocaleDateString()}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm ${t.status === 'open' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                                                    {t.status}
+                                                </div>
+                                            </div>
+                                            <p className="text-base font-medium text-gray-500 leading-relaxed italic border-l-4 border-gray-100 pl-8">
+                                                {t.message}
+                                            </p>
+                                        </div>
+                                    ))}
+                                    {tickets.length === 0 && <EmptyState icon={LifeBuoy} title="No Inquiries" desc="Direct communications between you and the administration will be securely logged here." />}
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            </div>
+
+            {/* Ticket Modal */}
+            {isTicketModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[60px] p-12 md:p-16 max-w-xl w-full shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500">
+                        <div className="absolute top-0 right-0 w-80 h-80 bg-primary-50 rounded-full blur-[100px] -mr-20 -mt-20 opacity-60"></div>
+
+                        <div className="relative z-10">
+                            <div className="flex justify-between items-start mb-12">
+                                <div>
+                                    <h2 className="text-4xl font-black text-gray-900 tracking-tighter italic leading-none mb-3">Institution Inquiry</h2>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Inquiry Type: Standard Communication</p>
+                                </div>
+                                <button onClick={() => setIsTicketModalOpen(false)} className="p-4 bg-gray-50 hover:bg-primary-50 hover:text-primary-600 rounded-3xl transition-all">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleCreateTicket} className="space-y-8">
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-2 italic">Subject of Communication</label>
+                                    <input
+                                        className="w-full px-8 py-5 bg-gray-50 border border-gray-100 rounded-[28px] outline-none focus:border-primary-300 focus:bg-white transition-all font-black italic text-lg tracking-tight shadow-inner"
+                                        placeholder="Brief summary..."
+                                        value={ticketData.subject}
+                                        onChange={e => setTicketData({ ...ticketData, subject: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-2 italic">Detailed Context</label>
+                                    <textarea
+                                        className="w-full px-8 py-6 bg-gray-50 border border-gray-100 rounded-[40px] outline-none focus:border-primary-300 focus:bg-white transition-all font-medium text-gray-600 min-h-[150px] italic shadow-inner"
+                                        placeholder="Describe your inquiry..."
+                                        value={ticketData.message}
+                                        onChange={e => setTicketData({ ...ticketData, message: e.target.value })}
+                                        required
+                                    ></textarea>
+                                </div>
+                                <button type="submit" className="w-full py-7 bg-gray-900 text-white rounded-[40px] font-black text-[11px] uppercase tracking-[0.4em] shadow-2xl hover:bg-primary-600 transition-all italic flex items-center justify-center gap-4">
+                                    Dispatch Inquiry <ChevronRight className="w-5 h-5" />
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
 
-// --- Sub-Components for Modularity ---
-
-const SectionHeader = ({ icon: Icon, title, label }) => (
-    <div className="flex items-center gap-4 mb-10">
-        <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-indigo-600 border border-gray-100 shadow-sm">
-            <Icon className="w-6 h-6" />
-        </div>
-        <div>
-            <h3 className="text-xl font-black text-gray-900 tracking-tight italic leading-none">{title}</h3>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">{label}</p>
-        </div>
-    </div>
-);
-
-const PerformanceBar = ({ name, percentage }) => (
-    <div className="group">
-        <div className="flex justify-between items-end mb-4 px-1">
-            <div>
-                <p className="text-sm font-black text-gray-900 tracking-tight italic uppercase">{name}</p>
-                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Course Completion</p>
-            </div>
-            <span className={`text-2xl font-black italic tracking-tighter ${percentage > 75 ? 'text-green-600' : 'text-indigo-600'}`}>
-                {percentage}%
-            </span>
-        </div>
-        <div className="w-full h-3.5 bg-gray-50 rounded-full overflow-hidden shadow-inner border border-gray-100">
-            <div
-                className="h-full bg-gradient-to-r from-indigo-700 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${percentage}%` }}
-            ></div>
-        </div>
-    </div>
-);
-
-const UpdateCard = ({ update, index }) => (
-    <div className="flex gap-8 group">
-        <div className="hidden md:flex flex-col items-center">
-            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
-                <Calendar className="w-5 h-5" />
-            </div>
-            <div className="w-0.5 flex-1 bg-gray-50 my-2"></div>
-        </div>
-        <div className="flex-1 bg-gray-50/50 p-8 rounded-[40px] border border-gray-100 hover:border-indigo-200 transition-all hover:bg-white hover:shadow-xl group-hover:-translate-y-1 duration-500 relative">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                <div>
-                    <h4 className="text-2xl font-black text-gray-900 tracking-tight italic">{update.subject || 'Unit Summary'}</h4>
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">{update.createdAt?.toDate().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                </div>
-                <div className="px-4 py-2 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20">
-                    Unit: {update.chapterCompleted}
-                </div>
-            </div>
-            <p className="text-md font-medium text-gray-500 leading-relaxed italic border-l-4 border-indigo-200 pl-6 mb-8">
-                “{update.generalNotes || 'Academic narratives for this milestone are being finalized.'}”
-            </p>
-            <div className="flex flex-wrap gap-4">
-                <Badge icon={Sparkles} text={`Tasked: ${update.homeworkAssigned || 'Standard Review'}`} />
-                {update.nextTopic && <Badge icon={ArrowRight} text={`Upcoming: ${update.nextTopic}`} />}
-            </div>
-        </div>
-    </div>
-);
-
-const Badge = ({ icon: Icon, text }) => (
-    <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-gray-100 shadow-sm">
-        <Icon className="w-3.5 h-3.5 text-indigo-500" />
-        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest truncate max-w-[150px]">{text}</span>
-    </div>
-);
-
-const FocusArea = ({ title }) => (
-    <div className="flex gap-5 group items-center bg-white p-5 rounded-3xl border border-gray-100 hover:border-indigo-300 transition-all cursor-default">
-        <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-            <Hash className="w-4 h-4" />
-        </div>
-        <div>
-            <p className="text-lg font-black tracking-tight italic text-gray-900 leading-none">{title}</p>
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Topic identified for reinforcement</p>
-        </div>
-    </div>
-);
-
-const MiniStat = ({ icon: Icon, label, value, color }) => {
-    const colors = {
-        indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
-        green: 'bg-green-50 text-green-600 border-green-100',
-    };
-    return (
-        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col items-center text-center">
-            <div className={`p-3 rounded-xl mb-4 ${colors[color]} border`}>
+const NavItem = ({ icon: Icon, label, active, onClick, demo }) => (
+    <button
+        onClick={onClick}
+        className={`w-full flex items-center justify-between px-8 py-5 rounded-[28px] transition-all group ${active ? 'bg-white shadow-xl shadow-primary-600/5 border border-primary-100' : 'hover:bg-gray-100'}`}
+    >
+        <div className="flex items-center gap-5">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${active ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20' : 'bg-gray-50 text-gray-400 group-hover:bg-white group-hover:text-primary-600 border border-transparent group-hover:border-gray-100 shadow-sm'}`}>
                 <Icon className="w-5 h-5" />
             </div>
-            <p className="text-2xl font-black text-gray-900 tracking-tighter italic">{value}</p>
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">{label}</p>
+            <span className={`text-[11px] font-black uppercase tracking-widest transition-all ${active ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-600'}`}>{label}</span>
         </div>
-    );
-};
-
-const ResultRow = ({ result }) => (
-    <div className="flex items-center justify-between p-5 rounded-3xl bg-gray-50/50 hover:bg-gray-100 transition-all border border-transparent hover:border-gray-200 group">
-        <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black italic text-sm shadow-sm ${Number(result.marksScored) / Number(result.totalMarks) > 0.8 ? 'bg-green-600 text-white' : 'bg-indigo-600 text-white'}`}>
-                {Math.round((Number(result.marksScored) / Number(result.totalMarks)) * 100)}%
-            </div>
-            <div>
-                <p className="text-xs font-black text-gray-900 tracking-tight italic uppercase">{result.subject || 'Unit Registry'}</p>
-                <div className="flex items-center gap-2 mt-1">
-                    <Clock className="w-3 h-3 text-gray-400" />
-                    <span className="text-[9px] text-gray-400 font-bold tracking-widest">{result.createdAt?.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                </div>
-            </div>
-        </div>
-        <div className="text-right">
-            <p className="text-sm font-black text-gray-900">{result.marksScored}<span className="text-gray-400">/{result.totalMarks}</span></p>
-            <p className="text-[8px] font-black text-indigo-400 uppercase mt-0.5 tracking-tighter italic">Log ID: {result.id.substring(0, 4)}</p>
-        </div>
-    </div>
+        {demo && (
+            <div className="w-2.5 h-2.5 bg-primary-100 rounded-full"></div>
+        )}
+    </button>
 );
 
-const EmptyState = ({ message, icon: Icon }) => (
-    <div className="col-span-full py-20 text-center opacity-30 italic font-medium flex flex-col items-center gap-4">
-        <Icon className="w-16 h-16" />
-        <p className="text-xl font-bold uppercase tracking-[0.2em]">{message}</p>
+const EmptyState = ({ icon: Icon, title, desc }) => (
+    <div className="py-24 text-center">
+        <div className="w-20 h-20 bg-gray-50 rounded-[30px] flex items-center justify-center text-gray-200 mx-auto mb-8 border border-gray-50 shadow-inner">
+            <Icon className="w-10 h-10" />
+        </div>
+        <h3 className="text-2xl font-black text-gray-300 italic tracking-tight">{title}</h3>
+        <p className="text-gray-400 font-medium text-xs max-w-[200px] mx-auto mt-2 italic leading-relaxed">{desc}</p>
     </div>
 );
-
-// --- Helpers ---
-
-const getPerformanceBySubject = (results) => {
-    const subjects = {};
-    results.forEach(res => {
-        const sub = res.subject || 'Assessments';
-        if (!subjects[sub]) subjects[sub] = { total: 0, marks: 0, count: 0 };
-        subjects[sub].total += Number(res.totalMarks || 0);
-        subjects[sub].marks += Number(res.marksScored || 0);
-        subjects[sub].count += 1;
-    });
-    return Object.entries(subjects).map(([name, data]) => ({
-        name,
-        percentage: data.total > 0 ? Math.round((data.marks / data.total) * 100) : 0
-    }));
-};
-
-const getFocusAreas = (results) => {
-    const topics = new Set();
-    results.forEach(res => {
-        if (res.weakTopics) res.weakTopics.forEach(t => topics.add(t));
-    });
-    return Array.from(topics).slice(0, 5);
-};
 
 export default ParentDashboard;
