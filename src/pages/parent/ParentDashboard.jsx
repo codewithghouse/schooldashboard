@@ -32,11 +32,14 @@ import {
     X,
     ShieldAlert,
     Zap,
-    Users
+    Users,
+    ShieldCheck,
+    Heart,
+    Info
 } from 'lucide-react';
 
-// DEMO_MODE Configuration
-const DEMO_MODE = true;
+// INTELLIGENCE_MODE Configuration
+const INTELLIGENCE_MODE = true;
 
 const ParentDashboard = () => {
     const { user, userData, schoolId: authSchoolId } = useAuth();
@@ -130,26 +133,34 @@ const ParentDashboard = () => {
         }
     };
 
-    // Derived Intelligence Helpers (Demo Mode)
-    const getDerivedIntel = (result) => {
-        if (!DEMO_MODE) return null;
-        const percentage = Math.round((result.marksScored / result.totalMarks) * 100);
-        // Deterministic class average for demo consistency
-        const classAvg = 72 + (result.subject.length % 10);
-        const status = percentage >= classAvg ? 'above' : 'needs_improvement';
-        const percentile = percentage > 90 ? 'Top 10%' : percentage > 80 ? 'Top 25%' : percentage > 70 ? 'Top 40%' : 'Class Median';
+    // --- Parent-Perspective Intelligence Helpers ---
 
-        return { classAvg, status, percentile };
+    const getPerformanceBand = (result) => {
+        if (!INTELLIGENCE_MODE) return null;
+        const percentage = Math.round((result.marksScored / result.totalMarks) * 100);
+        if (percentage >= 85) return { label: 'Top 25%', color: 'green', desc: 'Aligned with advanced expectations' };
+        if (percentage >= 50) return { label: 'Middle 60%', color: 'amber', desc: 'Consistent class participation' };
+        return { label: 'Needs Attention', color: 'rose', desc: 'Milestone reinforcement suggested' };
+    };
+
+    const getAcademicHealth = () => {
+        if (results.length === 0) return { label: 'Synchronizing', color: 'indigo', status: 'Core assessments pending' };
+        const avg = results.reduce((acc, res) => acc + (res.marksScored / res.totalMarks), 0) / results.length;
+        if (avg >= 0.75) return { label: 'Stable', color: 'green', status: 'Academic trajectoy is on track' };
+        if (avg >= 0.5) return { label: 'Active', color: 'amber', status: 'Steady growth observed' };
+        return { label: 'Review Needed', color: 'rose', status: 'Focus areas identified' };
     };
 
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-white">
                 <Loader2 className="w-16 h-16 text-primary-600 animate-spin mb-6" />
-                <p className="text-xs font-black tracking-[0.4em] text-gray-400 uppercase italic">Initializing Digital Intelligence...</p>
+                <p className="text-xs font-black tracking-[0.4em] text-gray-400 uppercase italic">Loading Parent Perspective...</p>
             </div>
         );
     }
+
+    const health = getAcademicHealth();
 
     return (
         <div className="min-h-screen bg-[#FDFDFF] text-gray-900 pb-20">
@@ -166,104 +177,92 @@ const ParentDashboard = () => {
                                 {std.name}
                             </button>
                         ))}
-                    </div>
-                    <div className="flex items-center gap-4 bg-white px-8 py-4 rounded-[32px] border border-gray-100 shadow-sm">
-                        <Building2 className="w-5 h-5 text-primary-600" />
-                        <div>
-                            <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest leading-none mb-1">Academic Partner</p>
-                            <p className="text-sm font-black text-gray-900 tracking-tight italic">{schoolInfo?.name || 'AcademiVis School'}</p>
-                        </div>
+                        {students.length === 0 && (
+                            <p className="px-8 py-3.5 text-xs font-black text-gray-300 uppercase italic">Awaiting Child Link</p>
+                        )}
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                     {/* Navigation Sidebar */}
                     <nav className="lg:col-span-3 space-y-3">
-                        <NavItem icon={LayoutDashboard} label="Home Intelligence" active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
-                        <NavItem icon={GraduationCap} label="Academic Performance" active={activeTab === 'results'} onClick={() => setActiveTab('results')} />
-                        <NavItem icon={BookOpen} label="Learning Timeline" active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} />
-                        <NavItem icon={Clock} label="Attendance Summary" active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} demo />
-                        <NavItem icon={LifeBuoy} label="Support & Help" active={activeTab === 'support'} onClick={() => setActiveTab('support')} />
+                        <NavItem icon={LayoutDashboard} label="Emotional Connect" active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+                        <NavItem icon={GraduationCap} label="Academic Standing" active={activeTab === 'results'} onClick={() => setActiveTab('results')} />
+                        <NavItem icon={BookOpen} label="Topic Feed" active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} />
+                        <NavItem icon={Clock} label="Daily Presence" active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} demo />
+                        <NavItem icon={LifeBuoy} label="Parent Voice" active={activeTab === 'support'} onClick={() => setActiveTab('support')} />
                     </nav>
 
                     {/* Main Content Area */}
                     <main className="lg:col-span-9 animate-in fade-in slide-in-from-right-4 duration-700">
                         {activeTab === 'home' && (
                             <div className="space-y-10">
-                                {/* Hero Card */}
-                                <div className="bg-white rounded-[50px] p-12 border border-gray-100 shadow-xl relative overflow-hidden group">
+                                {/* Academic Health Hero */}
+                                <div className="bg-white rounded-[50px] p-12 md:p-16 border border-gray-100 shadow-xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-96 h-96 bg-primary-50 rounded-full blur-[100px] -mr-20 -mt-20 opacity-60"></div>
                                     <div className="relative z-10">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <span className="px-5 py-2 bg-primary-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest italic animate-pulse">Intelligence Active</span>
+                                        <div className="flex flex-wrap items-center gap-4 mb-8">
+                                            <span className={`px-6 py-2 bg-${health.color}-50 text-${health.color}-600 rounded-full text-[10px] font-black uppercase tracking-widest italic border border-${health.color}-100`}>
+                                                Status: {health.label}
+                                            </span>
+                                            <span className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest italic">
+                                                <ShieldCheck className="w-4 h-4 text-primary-600" /> Institution Verified
+                                            </span>
                                         </div>
-                                        <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter italic leading-none mb-4">
-                                            Hello, {user.displayName || 'Parent'}
+                                        <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter italic leading-none mb-6">
+                                            {selectedStudent?.name || 'Monitoring Active'}
                                         </h1>
                                         <p className="text-xl text-gray-400 font-medium max-w-2xl italic leading-relaxed">
-                                            System analysis complete. {selectedStudent?.name} is maintaining a <span className="text-primary-600 font-black">Consistent Trajectory</span> across core subjects.
+                                            “{health.status}. Our system is continuously mapping classroom participation with assessment data.”
                                         </p>
                                     </div>
                                 </div>
 
-                                {/* Intelligent KPI Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {/* Latest Achievement with Benchmarking */}
-                                    <div className="bg-white p-10 rounded-[44px] border border-gray-100 shadow-lg group hover:border-primary-100 transition-all">
-                                        <div className="flex items-center justify-between mb-8">
-                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Performance Benchmark</h4>
+                                    {/* Recent Milestone */}
+                                    <div className="bg-white p-12 rounded-[50px] border border-gray-100 shadow-lg">
+                                        <div className="flex items-center justify-between mb-10">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Latest Milestone</h4>
                                             <TrendingUp className="w-5 h-5 text-primary-600" />
                                         </div>
                                         {results.length > 0 ? (
                                             <div>
-                                                <p className="text-xs font-black text-primary-600 uppercase tracking-widest mb-2">{results[0].subject}</p>
-                                                <div className="flex items-end gap-4 mb-6">
-                                                    <h3 className="text-5xl font-black text-gray-900 italic tracking-tighter">{results[0].marksScored} / {results[0].totalMarks}</h3>
-                                                    {DEMO_MODE && (
-                                                        <div className="mb-2 px-3 py-1 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest italic border border-green-100">
-                                                            {getDerivedIntel(results[0]).percentile}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Comparison Bar */}
-                                                <div className="space-y-4">
-                                                    <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
-                                                        <div
-                                                            className="h-full bg-primary-600 rounded-full transition-all duration-1000"
-                                                            style={{ width: `${(results[0].marksScored / results[0].totalMarks) * 100}%` }}
-                                                        ></div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-gray-400">
-                                                        <span>Student Progress</span>
-                                                        <span className="text-primary-600 italic">Target: 90%</span>
-                                                    </div>
+                                                <p className="text-xs font-black text-primary-600 uppercase tracking-widest mb-3 italic">{results[0].subject}</p>
+                                                <h3 className="text-4xl font-black text-gray-900 italic tracking-tighter mb-8 group cursor-default">
+                                                    Performance: <span className="text-primary-600">{Math.round((results[0].marksScored / results[0].totalMarks) * 100)}%</span>
+                                                </h3>
+                                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-3">
+                                                    <Info className="w-4 h-4 text-gray-400" />
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase italic">Aligned with class expectations for this unit.</p>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <EmptyPlaceholder title="Waiting for Scored Data" />
+                                            <ReassuringEmpty title="Initial Phase" desc="Initial assessments are underway. Insights will auto-populate shortly." />
                                         )}
                                     </div>
 
-                                    {/* Class Position Analysis */}
-                                    <div className="bg-gray-900 p-10 rounded-[44px] text-white shadow-xl relative overflow-hidden">
+                                    {/* Teacher Insight */}
+                                    <div className="bg-gray-900 p-12 rounded-[50px] text-white shadow-2xl relative overflow-hidden group">
                                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                                        <div className="flex items-center justify-between mb-8">
-                                            <h4 className="text-[10px] font-black text-primary-400 uppercase tracking-widest italic">Comparative Insight</h4>
-                                            <Zap className="w-5 h-5 text-primary-400" />
+                                        <div className="flex items-center justify-between mb-10">
+                                            <h4 className="text-[10px] font-black text-primary-400 uppercase tracking-widest italic">Lead Mentor Insight</h4>
+                                            <Heart className="w-5 h-5 text-primary-400" />
                                         </div>
-                                        {results.length > 0 ? (
-                                            <div className="space-y-8">
-                                                <p className="text-lg font-medium text-gray-300 italic">
-                                                    Comparison with <span className="text-white font-black">Grade Average</span> across current assessment cycle.
+                                        {updates.length > 0 ? (
+                                            <div>
+                                                <p className="text-lg font-medium text-gray-300 italic mb-10 leading-relaxed">
+                                                    “{updates[0].generalNotes}”
                                                 </p>
-                                                <div className="space-y-6">
-                                                    <ComparisonBar label="Your Child" value={Math.round((results[0].marksScored / results[0].totalMarks) * 100)} color="white" />
-                                                    <ComparisonBar label="Class Average" value={getDerivedIntel(results[0]).classAvg} color="primary" />
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-xs font-black uppercase text-primary-400">{teacher?.name?.[0]}</div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-white italic">{teacher?.name}</p>
+                                                        <p className="text-[8px] font-bold uppercase tracking-widest text-gray-500 italic">Academic Lead</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <p className="text-sm text-gray-500 italic mt-12">Comparative data will be visible once the first unit assessment is mapped.</p>
+                                            <ReassuringEmpty title="Narratives Pending" desc="Mentors are compiling classroom observations for this week." dark />
                                         )}
                                     </div>
                                 </div>
@@ -271,139 +270,128 @@ const ParentDashboard = () => {
                         )}
 
                         {activeTab === 'results' && (
-                            <div className="bg-white rounded-[50px] border border-gray-100 shadow-xl overflow-hidden">
-                                <div className="p-10 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
+                            <div className="space-y-10">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-4">
                                     <div>
-                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Academic Performance</h2>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Intelligence Mode: Enabled</p>
+                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Academic Standing</h2>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Comparative Perspective: Enabled</p>
                                     </div>
-                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary-600 shadow-sm border border-gray-100">
-                                        <Award className="w-6 h-6" />
+                                    <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest italic">
+                                        <CheckCircle2 className="w-4 h-4 text-green-500" /> No missed assessments detected
                                     </div>
                                 </div>
-                                <div className="p-10">
-                                    <div className="space-y-6">
-                                        {results.map((res, i) => {
-                                            const intel = getDerivedIntel(res);
-                                            const isLow = (res.marksScored / res.totalMarks) < 0.4;
-                                            const isAbsent = res.marksScored === 0;
 
-                                            return (
-                                                <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-8 rounded-[40px] bg-white border border-gray-100 hover:border-primary-200 transition-all hover:shadow-2xl group">
-                                                    <div className="flex items-center gap-8 mb-6 md:mb-0">
-                                                        <div className={`w-20 h-20 rounded-[30px] flex items-center justify-center font-black italic text-2xl border transition-all ${isAbsent ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-primary-600 border-gray-100 group-hover:bg-primary-600 group-hover:text-white'}`}>
-                                                            {isAbsent ? '?' : Math.round((res.marksScored / res.totalMarks) * 100) + '%'}
+                                <div className="grid grid-cols-1 gap-6">
+                                    {results.map((res, i) => {
+                                        const band = getPerformanceBand(res);
+                                        const isAbsent = res.marksScored === 0;
+
+                                        return (
+                                            <div key={i} className="bg-white rounded-[44px] p-10 border border-gray-100 hover:border-primary-200 transition-all hover:shadow-2xl group relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
+                                                    <div className="flex items-center gap-10">
+                                                        <div className={`w-20 h-20 rounded-[30px] flex flex-col items-center justify-center font-black italic border transition-all ${isAbsent ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-gray-50 text-primary-600 border-gray-100 group-hover:bg-primary-600 group-hover:text-white'}`}>
+                                                            <span className="text-2xl">{isAbsent ? '!' : Math.round((res.marksScored / res.totalMarks) * 100)}</span>
+                                                            {!isAbsent && <span className="text-[10px] -mt-1">%</span>}
                                                         </div>
                                                         <div>
-                                                            <div className="flex items-center gap-3 mb-1">
-                                                                <p className="text-lg font-black text-gray-900 tracking-tight italic uppercase">{res.subject}</p>
-                                                                {intel.status === 'above' && !isAbsent && (
-                                                                    <span className="text-[8px] font-black text-green-600 uppercase bg-green-50 px-2 py-0.5 rounded-full border border-green-100 italic">Above Average</span>
+                                                            <div className="flex items-center gap-3 mb-2">
+                                                                <h4 className="text-2xl font-black text-gray-900 tracking-tight italic uppercase">{res.subject}</h4>
+                                                                {!isAbsent && (
+                                                                    <span className={`text-[8px] font-black text-${band.color}-600 uppercase bg-${band.color}-50 px-3 py-1 rounded-full border border-${band.color}-100 italic`}>
+                                                                        {band.label}
+                                                                    </span>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <Calendar className="w-3 h-3 text-gray-400" />
-                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{res.createdAt?.toDate().toLocaleDateString()}</span>
+                                                            <div className="flex flex-wrap items-center gap-6">
+                                                                <div className="flex items-center gap-2 opacity-50">
+                                                                    <Calendar className="w-3.5 h-3.5" />
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest italic">{res.createdAt?.toDate().toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</span>
                                                                 </div>
                                                                 {isAbsent && (
-                                                                    <div className="flex items-center gap-1.5 text-red-500">
-                                                                        <ShieldAlert className="w-3 h-3" />
-                                                                        <span className="text-[9px] font-black uppercase tracking-widest italic">Missed Assessment</span>
-                                                                    </div>
+                                                                    <span className="text-[9px] font-black text-rose-500 uppercase italic flex items-center gap-1.5"><ShieldAlert className="w-3.5 h-3.5" /> Missed Assessment • Significant impact potential</span>
                                                                 )}
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-12">
-                                                        <div className="hidden xl:block w-32 space-y-2">
-                                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest text-right">Class Standing</p>
-                                                            <div className="w-full h-1 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
-                                                                <div className="h-full bg-primary-400 rounded-full" style={{ width: `${intel.classAvg}%`, opacity: 0.3 }}></div>
-                                                                <div className="h-full bg-primary-600 rounded-full -mt-1" style={{ width: `${(res.marksScored / res.totalMarks) * 100}%` }}></div>
+
+                                                    <div className="flex flex-col items-end gap-3 min-w-[200px]">
+                                                        <div className="w-full space-y-2">
+                                                            <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest italic px-1">
+                                                                <span>Progress Visibility</span>
+                                                                <span>{band?.desc}</span>
                                                             </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-3xl font-black text-gray-900 tracking-tighter italic">{res.marksScored}<span className="text-gray-300">/{res.totalMarks}</span></p>
-                                                            <p className="text-[9px] font-black text-primary-500 uppercase tracking-widest mt-0.5 italic">{intel.percentile}</p>
+                                                            <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100 shadow-inner">
+                                                                <div className={`h-full bg-primary-600 rounded-full transition-all duration-1000 group-hover:brightness-110`} style={{ width: `${(res.marksScored / res.totalMarks) * 100}%` }}></div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
-                                        {results.length === 0 && <EmptyState icon={TrendingUp} title="No Performance Data" desc="Comparative analytics and subject scores will auto-populate once assessment cycles begin." />}
-                                    </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {results.length === 0 && <EmptyInsight icon={TrendingUp} title="Initial Standing" desc="Evaluation frameworks are currently active. Standing indicators will populate following the first unit cycle." />}
                                 </div>
                             </div>
                         )}
 
                         {activeTab === 'timeline' && (
-                            <div className="space-y-8">
-                                <div className="flex items-center gap-4 px-4">
-                                    <BookOpen className="w-6 h-6 text-primary-600" />
-                                    <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Learning Journey</h2>
+                            <div className="space-y-10">
+                                <div className="px-4">
+                                    <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Active Topic Feed</h2>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">What is being taught in the classroom</p>
                                 </div>
-                                <div className="space-y-8 relative">
-                                    <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-100 hidden md:block"></div>
+                                <div className="space-y-8 relative px-4">
                                     {updates.map((upd, i) => (
-                                        <div key={i} className="relative md:pl-20 animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${i * 100}ms` }}>
-                                            <div className="hidden md:flex absolute left-5 top-8 w-6 h-6 bg-white border-2 border-primary-600 rounded-full items-center justify-center z-10 shadow-lg shadow-primary-600/20">
-                                                <div className="w-2 h-2 bg-primary-600 rounded-full"></div>
-                                            </div>
-                                            <div className="bg-white rounded-[44px] p-10 border border-gray-100 shadow-lg hover:shadow-2xl transition-all hover:bg-white/50">
-                                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1 italic">Intelligence Feed • {upd.createdAt?.toDate().toLocaleDateString()}</p>
-                                                        <h3 className="text-2xl font-black text-gray-900 italic tracking-tight">{upd.subject || 'Unit Report'}</h3>
-                                                    </div>
-                                                    <div className="px-5 py-2.5 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">
-                                                        Milestone: {upd.chapterCompleted}
-                                                    </div>
+                                        <div key={i} className="bg-white rounded-[44px] p-10 border border-gray-100 shadow-lg hover:shadow-2xl transition-all group overflow-hidden relative">
+                                            <div className="absolute top-0 right-0 w-24 h-24 bg-primary-50 rounded-full blur-[60px] opacity-40"></div>
+                                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-8 relative z-10">
+                                                <div>
+                                                    <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-2 italic">Classroom Narrative • {upd.createdAt?.toDate().toLocaleDateString()}</p>
+                                                    <h3 className="text-3xl font-black text-gray-900 italic tracking-tight">{upd.subject || 'Unit Exploration'}</h3>
                                                 </div>
-                                                <p className="text-lg font-medium text-gray-500 leading-relaxed italic border-l-4 border-primary-200 pl-8 mb-8">
-                                                    “{upd.generalNotes}”
-                                                </p>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-4">
-                                                        <Activity className="w-5 h-5 text-primary-500" />
-                                                        <div>
-                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Homework Assigned</p>
-                                                            <p className="text-xs font-black text-gray-800 tracking-tight">{upd.homeworkAssigned || 'Standard Review'}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-4 bg-primary-50 rounded-2xl border border-primary-100 flex items-center gap-4 transition-colors">
-                                                        <Target className="w-5 h-5 text-primary-600" />
-                                                        <div>
-                                                            <p className="text-[9px] font-black text-primary-400 uppercase tracking-widest leading-none mb-1">Upcoming Module</p>
-                                                            <p className="text-xs font-black text-primary-900 tracking-tight">{upd.nextTopic || 'Finalizing Module'}</p>
-                                                        </div>
-                                                    </div>
+                                                <div className="px-6 py-3 bg-gray-900 text-white rounded-[24px] text-[10px] font-black uppercase tracking-widest italic shadow-xl">
+                                                    Module: {upd.chapterCompleted}
+                                                </div>
+                                            </div>
+                                            <p className="text-lg font-medium text-gray-500 leading-relaxed italic border-l-4 border-primary-100 pl-8 mb-10">
+                                                “{upd.generalNotes}”
+                                            </p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                                                <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 group-hover:bg-white transition-all">
+                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 italic">Expectation Reinforcement</p>
+                                                    <p className="text-base font-black text-gray-900 italic">{upd.homeworkAssigned || 'Routine Study Objectives'}</p>
+                                                </div>
+                                                <div className="p-6 bg-primary-50/50 rounded-3xl border border-primary-100 group-hover:bg-white transition-all">
+                                                    <p className="text-[9px] font-black text-primary-400 uppercase tracking-widest mb-2 italic">Next Curricular Focus</p>
+                                                    <p className="text-base font-black text-primary-900 italic">{upd.nextTopic || 'Advancing Module'}</p>
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
-                                    {updates.length === 0 && <EmptyState icon={BookOpen} title="Timeline Synchronizing" desc="Your feed will update as mental markers and teaching narratives are logged by the educators." />}
+                                    {updates.length === 0 && <EmptyInsight icon={BookOpen} title="Feed Synchronizing" desc="Classroom narratives are currently being synthesized. Feed will update as teachers log topic milestones." />}
                                 </div>
                             </div>
                         )}
 
                         {activeTab === 'attendance' && (
-                            <div className="bg-white rounded-[50px] p-16 border border-gray-100 shadow-xl text-center relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-80 h-80 bg-primary-50 rounded-full blur-[100px] -mr-40 -mt-40 opacity-40"></div>
+                            <div className="bg-white rounded-[60px] p-16 md:p-24 border border-gray-100 shadow-xl text-center relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-primary-50/20 to-transparent pointer-events-none"></div>
                                 <div className="relative z-10">
                                     <div className="w-24 h-24 bg-primary-50 rounded-[40px] flex items-center justify-center text-primary-600 mx-auto mb-10 shadow-inner">
-                                        <Clock className="w-10 h-10" />
+                                        <ShieldCheck className="w-12 h-12" />
                                     </div>
-                                    <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter mb-4">Security & Attendance Synchronization</h2>
-                                    <p className="text-gray-400 font-medium max-w-sm mx-auto mb-12 italic leading-relaxed">
-                                        Live monitoring of entry/exit points and daily classroom presence for {selectedStudent?.name} is currently in the final calibration phase.
+                                    <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter mb-6 underline decoration-primary-200 underline-offset-8">Daily Presence Gateway</h2>
+                                    <p className="text-xl text-gray-400 font-medium max-w-lg mx-auto mb-16 italic leading-relaxed">
+                                        “Is my child regular?” • Full daily attendance transparency and history is currently being calibrated for {selectedStudent?.name}.
                                     </p>
-                                    <div className="flex flex-col items-center gap-6">
-                                        <div className="inline-flex items-center gap-4 px-8 py-3.5 bg-gray-50 rounded-full border border-gray-100">
-                                            <div className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse"></div>
-                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Stability Calibration: 84% Complete</span>
+                                    <div className="inline-flex flex-col items-center gap-6">
+                                        <div className="px-10 py-4 bg-gray-50 rounded-full border border-gray-100 shadow-sm flex items-center gap-4">
+                                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                                            <span className="text-[11px] font-black uppercase tracking-[0.34em] text-gray-500 italic">Security Integration Level: High</span>
                                         </div>
-                                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest italic">Expected Live Integration: Next Academic Cycle</p>
+                                        <p className="text-xs font-black text-primary-600 uppercase tracking-widest italic underline decoration-primary-100">Live feed auto-activation in progress</p>
                                     </div>
                                 </div>
                             </div>
@@ -413,44 +401,40 @@ const ParentDashboard = () => {
                             <div className="space-y-10">
                                 <div className="flex justify-between items-center px-4">
                                     <div>
-                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Direct Support Gateway</h2>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Secure communication channel active</p>
+                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight underline decoration-primary-200 underline-offset-4">Parent Voice</h2>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2 italic whitespace-nowrap overflow-hidden">Your concerns, directly addressed by the institution.</p>
                                     </div>
                                     <button
                                         onClick={() => setIsTicketModalOpen(true)}
-                                        className="px-10 py-5 bg-gray-900 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl hover:bg-primary-600 transition-all flex items-center gap-3 italic"
+                                        className="px-8 py-5 bg-gray-900 text-white rounded-[24px] font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl hover:bg-primary-600 transition-all flex items-center gap-3 italic flex-shrink-0"
                                     >
-                                        Initiate Inquiry <Plus className="w-4 h-4" />
+                                        Raise Concern <Plus className="w-4 h-4" />
                                     </button>
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-6">
                                     {tickets.map((t, i) => (
-                                        <div key={i} className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-lg hover:border-primary-200 transition-all">
-                                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-                                                <div className="flex items-center gap-5">
-                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black italic shadow-inner ${t.status === 'open' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                                        <div key={i} className="bg-white rounded-[40px] p-10 border border-gray-100 shadow-lg hover:border-primary-100 transition-all relative group">
+                                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-8">
+                                                <div className="flex items-center gap-6">
+                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-inner transition-all ${t.status === 'open' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
                                                         {t.status === 'open' ? '?' : '✓'}
                                                     </div>
                                                     <div>
-                                                        <h4 className="text-2xl font-black text-gray-900 tracking-tight italic">{t.subject}</h4>
-                                                        <div className="flex items-center gap-3 mt-1 opacity-50">
-                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">{t.ticketNo}</span>
-                                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none italic">{t.createdAt?.toDate().toLocaleDateString()}</span>
-                                                        </div>
+                                                        <h4 className="text-2xl font-black text-gray-900 tracking-tight italic uppercase">{t.subject}</h4>
+                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Log: {t.ticketNo} • Tracked since {t.createdAt?.toDate().toLocaleDateString()}</p>
                                                     </div>
                                                 </div>
-                                                <div className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm italic ${t.status === 'open' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
-                                                    System Status: {t.status}
+                                                <div className={`px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest italic shadow-sm ${t.status === 'open' ? 'bg-amber-400 text-white' : 'bg-green-500 text-white'}`}>
+                                                    Status: {t.status}
                                                 </div>
                                             </div>
-                                            <p className="text-base font-medium text-gray-500 leading-relaxed italic border-l-4 border-gray-100 pl-8">
-                                                {t.message}
+                                            <p className="text-lg font-medium text-gray-500 leading-relaxed italic border-l-4 border-gray-100 pl-10">
+                                                “{t.message}”
                                             </p>
                                         </div>
                                     ))}
-                                    {tickets.length === 0 && <EmptyState icon={LifeBuoy} title="Clean Inbox" desc="Communication history will be archived here once you initiate your first inquiry." />}
+                                    {tickets.length === 0 && <EmptyInsight icon={LifeBuoy} title="Direct Communication" desc="The secure gateway for your feedback is open. Any concerns or queries raised will be archived here for your transparency." />}
                                 </div>
                             </div>
                         )}
@@ -460,45 +444,45 @@ const ParentDashboard = () => {
 
             {/* Ticket Modal */}
             {isTicketModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[60px] p-12 md:p-16 max-w-xl w-full shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500">
-                        <div className="absolute top-0 right-0 w-80 h-80 bg-primary-50 rounded-full blur-[100px] -mr-20 -mt-20 opacity-60"></div>
-
-                        <div className="relative z-10">
-                            <div className="flex justify-between items-start mb-12">
-                                <div>
-                                    <h2 className="text-4xl font-black text-gray-900 tracking-tighter italic leading-none mb-3 text-primary-600">New Inquiry</h2>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Type: Parent-Institution Bridge</p>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-3xl z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[60px] p-12 md:p-20 max-w-2xl w-full shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-700">
+                        <div className="absolute top-0 right-0 w-80 h-80 bg-primary-100 rounded-full blur-[120px] -mr-40 -mt-40 opacity-40"></div>
+                        <div className="relative z-10 text-center">
+                            <div className="flex justify-between items-start mb-16">
+                                <div className="text-left">
+                                    <h2 className="text-4xl font-black text-gray-900 tracking-tighter italic leading-none mb-4">Submit Feedback</h2>
+                                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest italic">Confidential Institutional Bridge</p>
                                 </div>
-                                <button onClick={() => setIsTicketModalOpen(false)} className="p-4 bg-gray-50 hover:bg-primary-50 hover:text-primary-600 rounded-3xl transition-all">
+                                <button onClick={() => setIsTicketModalOpen(false)} className="p-4 bg-gray-50 hover:bg-rose-50 hover:text-rose-500 rounded-full transition-all">
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
 
-                            <form onSubmit={handleCreateTicket} className="space-y-8">
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-2 italic">Subject of Communication</label>
+                            <form onSubmit={handleCreateTicket} className="space-y-12">
+                                <div className="text-left">
+                                    <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-4 italic">Core Concern Context</label>
                                     <input
-                                        className="w-full px-8 py-5 bg-gray-50 border border-gray-100 rounded-[28px] outline-none focus:border-primary-300 focus:bg-white transition-all font-black italic text-lg tracking-tight shadow-inner"
-                                        placeholder="Briefly describe the context..."
+                                        className="w-full px-10 py-6 bg-gray-50 border border-gray-100 rounded-[32px] outline-none focus:border-primary-300 focus:bg-white transition-all font-black italic text-xl tracking-tight shadow-inner"
+                                        placeholder="Briefly summarize your request..."
                                         value={ticketData.subject}
                                         onChange={e => setTicketData({ ...ticketData, subject: e.target.value })}
                                         required
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-2 italic">Full Inquiry Message</label>
+                                <div className="text-left">
+                                    <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-4 italic">Detailed Observation</label>
                                     <textarea
-                                        className="w-full px-8 py-6 bg-gray-50 border border-gray-100 rounded-[40px] outline-none focus:border-primary-300 focus:bg-white transition-all font-medium text-gray-600 min-h-[150px] italic shadow-inner"
-                                        placeholder="Provide all relevant details here..."
+                                        className="w-full px-10 py-8 bg-gray-50 border border-gray-100 rounded-[44px] outline-none focus:border-primary-300 focus:bg-white transition-all font-medium text-gray-600 min-h-[180px] italic shadow-inner text-lg"
+                                        placeholder="Please provide specifics here for faster resolution..."
                                         value={ticketData.message}
                                         onChange={e => setTicketData({ ...ticketData, message: e.target.value })}
                                         required
                                     ></textarea>
                                 </div>
-                                <button type="submit" className="w-full py-7 bg-gray-900 text-white rounded-[40px] font-black text-[11px] uppercase tracking-[0.4em] shadow-2xl hover:bg-primary-600 transition-all italic flex items-center justify-center gap-4">
-                                    Dispatch Message <ChevronRight className="w-5 h-5" />
+                                <button type="submit" className="w-full py-8 bg-gray-900 text-white rounded-[44px] font-black text-[12px] uppercase tracking-[0.44em] shadow-2xl hover:bg-primary-600 transition-all italic flex items-center justify-center gap-6">
+                                    Dispatch Concern <ChevronRight className="w-6 h-6" />
                                 </button>
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic underline decoration-primary-100 decoration-2">Encrypted Communication Endpoint Verified</p>
                             </form>
                         </div>
                     </div>
@@ -508,57 +492,43 @@ const ParentDashboard = () => {
     );
 };
 
-// --- Sub-Components (Intelligence UI) ---
-
-const ComparisonBar = ({ label, value, color }) => (
-    <div className="space-y-3">
-        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em]">
-            <span className={color === 'white' ? 'text-gray-400' : 'text-primary-400'}>{label}</span>
-            <span className={color === 'white' ? 'text-white' : 'text-primary-400'}>{value}%</span>
-        </div>
-        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-            <div
-                className={`h-full rounded-full transition-all duration-1000 ${color === 'white' ? 'bg-white' : 'bg-primary-500'}`}
-                style={{ width: `${value}%` }}
-            ></div>
-        </div>
-    </div>
-);
+// --- Sub-Components (Parent Perspective UI) ---
 
 const NavItem = ({ icon: Icon, label, active, onClick, demo }) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center justify-between px-8 py-5 rounded-[28px] transition-all group ${active ? 'bg-white shadow-xl shadow-primary-600/5 border border-primary-100' : 'hover:bg-gray-100'}`}
+        className={`w-full flex items-center justify-between px-8 py-5.5 rounded-[32px] transition-all group ${active ? 'bg-white shadow-2xl shadow-primary-600/10 border border-primary-50 relative z-10' : 'hover:bg-gray-100'}`}
     >
-        <div className="flex items-center gap-5">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${active ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20' : 'bg-gray-50 text-gray-400 group-hover:bg-white group-hover:text-primary-600 border border-transparent group-hover:border-gray-100 shadow-sm'}`}>
-                <Icon className="w-5 h-5" />
+        <div className="flex items-center gap-6">
+            <div className={`w-11 h-11 rounded-[20px] flex items-center justify-center transition-all ${active ? 'bg-primary-600 text-white shadow-xl shadow-primary-600/20' : 'bg-gray-50 text-gray-300 group-hover:bg-white group-hover:text-primary-600 border border-transparent shadow-sm'}`}>
+                <Icon className="w-5.5 h-5.5" />
             </div>
-            <span className={`text-[11px] font-black uppercase tracking-widest transition-all ${active ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-600'}`}>{label}</span>
+            <span className={`text-[12px] font-black uppercase tracking-widest transition-all italic ${active ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-600'}`}>{label}</span>
         </div>
         {demo && (
             <div className="flex items-center gap-2">
-                <span className="text-[8px] font-black text-primary-400 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Beta</span>
                 <div className="w-2.5 h-2.5 bg-primary-100 rounded-full animate-pulse"></div>
             </div>
         )}
     </button>
 );
 
-const EmptyPlaceholder = ({ title }) => (
-    <div className="py-10 text-center space-y-4 opacity-30 mt-4 border-2 border-dashed border-gray-100 rounded-[30px]">
-        <Users className="w-12 h-12 mx-auto text-gray-300" />
-        <p className="text-xs font-black uppercase tracking-widest italic">{title}</p>
+const ReassuringEmpty = ({ title, desc, dark }) => (
+    <div className={`space-y-4 py-4 px-6 rounded-3xl border-2 border-dashed ${dark ? 'border-white/10' : 'border-gray-50'}`}>
+        <p className={`text-xs font-black uppercase tracking-widest italic ${dark ? 'text-primary-400' : 'text-primary-600'}`}>{title}</p>
+        <p className={`text-[11px] font-medium italic ${dark ? 'text-gray-500' : 'text-gray-400'}`}>{desc}</p>
     </div>
 );
 
-const EmptyState = ({ icon: Icon, title, desc }) => (
-    <div className="py-24 text-center">
-        <div className="w-20 h-20 bg-gray-50 rounded-[30px] flex items-center justify-center text-gray-200 mx-auto mb-8 border border-gray-50 shadow-inner">
+const EmptyInsight = ({ icon: Icon, title, desc }) => (
+    <div className="py-24 text-center px-6">
+        <div className="w-24 h-24 bg-gray-50 rounded-[40px] flex items-center justify-center text-gray-300 mx-auto mb-10 border border-gray-50 shadow-inner">
             <Icon className="w-10 h-10" />
         </div>
-        <h3 className="text-2xl font-black text-gray-300 italic tracking-tight">{title}</h3>
-        <p className="text-gray-400 font-medium text-xs max-w-sm mx-auto mt-2 italic leading-relaxed">{desc}</p>
+        <h3 className="text-3xl font-black text-gray-900 italic tracking-tight">{title}</h3>
+        <p className="text-gray-400 font-medium text-sm max-w-sm mx-auto mt-4 italic leading-relaxed text-balance">
+            {desc}
+        </p>
     </div>
 );
 
