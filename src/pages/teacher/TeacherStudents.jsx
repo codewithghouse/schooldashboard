@@ -54,8 +54,8 @@ const TeacherStudents = () => {
             fetchStudents();
             alert("Student added successfully! Parent invitation sent.");
         } catch (error) {
-            console.error(error);
-            alert("Error adding student. Please try again.");
+            console.error("Student Add Error:", error);
+            alert("Failed to add student: " + (error.message || "Unknown error"));
         } finally {
             setSubmitting(false);
         }

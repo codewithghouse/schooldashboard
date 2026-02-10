@@ -66,8 +66,9 @@ service cloud.firestore {
 
     /* INVITES — FINAL FIX */
     match /invites/{inviteId} {
-      allow create: if isSignedIn() && isAdmin();
-      allow read, update, delete: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher");
+      allow read, list: if isSignedIn() && (isAdmin() || (userDoc().data.role == "teacher" && (resource == null || resource.data.schoolId == userDoc().data.schoolId)));
+      allow update, delete: if isSignedIn() && isAdmin();
     }
 
     /* ACADEMIC DATA — FINAL FIX */

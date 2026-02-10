@@ -249,39 +249,53 @@ export const deleteTeacher = async (schoolId, teacherId) => {
 
 // --- Student Services ---
 export const addStudent = async (schoolId, studentData) => {
+    // 1. Enroll the Student
     const docRef = await addDoc(collection(db, 'students'), {
         ...studentData,
         schoolId,
         createdAt: serverTimestamp()
     });
 
-    // Invite Parent
+    // 2. Prepare Parent Invitation
     const email = studentData.parentEmail.toLowerCase().trim();
 
-    // Check if email already exists with a different role
-    const q = query(collection(db, 'users'), where("email", "==", email));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-        console.warn("Parent email already has a role. Skipping invite.");
-        return docRef;
+    // Check if a pending invite already exists for this school
+    const inviteQ = query(collection(db, 'invites'),
+        where("schoolId", "==", schoolId),
+        where("email", "==", email),
+        where("role", "==", "parent")
+    );
+    const inviteSnap = await getDocs(inviteQ);
+
+    if (inviteSnap.empty) {
+        // Create Invite Document for Tracking
+        await addDoc(collection(db, 'invites'), {
+            email: email,
+            role: 'parent',
+            schoolId: schoolId,
+            studentId: docRef.id,
+            status: 'pending',
+            invitedBy: auth.currentUser.uid,
+            createdAt: serverTimestamp()
+        });
+
+        const params = new URLSearchParams({
+            role: 'parent',
+            schoolId: schoolId,
+            studentId: docRef.id
+        });
+
+        const actionCodeSettings = {
+            url: `${window.location.origin}/accept-invite?${params.toString()}`,
+            handleCodeInApp: true,
+        };
+
+        // Transmit Link via Firebase Auth
+        await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+
+        // Cleanup / Store for UI
+        localStorage.setItem("inviteEmail", email);
     }
-    const params = new URLSearchParams({
-        role: 'parent',
-        schoolId: schoolId,
-        studentId: docRef.id
-    });
-
-    const actionCodeSettings = {
-        url: `${window.location.origin}/accept-invite?${params.toString()}`,
-        handleCodeInApp: true,
-    };
-
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-
-    localStorage.setItem("inviteEmail", email);
-    localStorage.setItem("inviteRole", "parent");
-    localStorage.setItem("inviteSchoolId", schoolId);
-    localStorage.setItem("inviteStudentId", docRef.id);
 
     return docRef;
 };
