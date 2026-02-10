@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Lock, ArrowRight, UserCircle2 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 const LoginPage = () => {
     const [loading, setLoading] = useState(false);
@@ -25,7 +27,27 @@ const LoginPage = () => {
             const provider = new GoogleAuthProvider();
             // Force account selection on every login
             provider.setCustomParameters({ prompt: 'select_account' });
-            await signInWithPopup(auth, provider);
+            const result = await signInWithPopup(auth, provider);
+
+            // 1️⃣ After Admin Login — CREATE / MERGE USER DOC (Requirement)
+            if (selectedRole === 'admin') {
+                const userRef = doc(db, "users", result.user.uid);
+                const userSnap = await getDoc(userRef);
+
+                // Only initialize schoolId: null if truly new or missing
+                if (!userSnap.exists() || !userSnap.data().schoolId) {
+                    await setDoc(
+                        userRef,
+                        {
+                            uid: result.user.uid,
+                            role: "admin",
+                            schoolId: null,
+                            email: result.user.email
+                        },
+                        { merge: true }
+                    );
+                }
+            }
         } catch (error) {
             console.error(error);
             if (error.code !== 'auth/popup-closed-by-user') {
@@ -46,10 +68,29 @@ const LoginPage = () => {
 
             const { signInWithEmailAndPassword } = await import('firebase/auth');
             const { auth } = await import('../../lib/firebase');
-            await signInWithEmailAndPassword(auth,
+            const result = await signInWithEmailAndPassword(auth,
                 e.target[0].value, // email 
                 e.target[1].value  // password
             );
+
+            // 1️⃣ After Admin Login — CREATE / MERGE USER DOC (Requirement)
+            if (selectedRole === 'admin') {
+                const userRef = doc(db, "users", result.user.uid);
+                const userSnap = await getDoc(userRef);
+
+                if (!userSnap.exists() || !userSnap.data().schoolId) {
+                    await setDoc(
+                        userRef,
+                        {
+                            uid: result.user.uid,
+                            role: "admin",
+                            schoolId: null,
+                            email: result.user.email
+                        },
+                        { merge: true }
+                    );
+                }
+            }
         } catch (error) {
             console.error(error);
             alert("Login failed: " + error.message);

@@ -2,8 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /* ---------- HELPERS ---------- */
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -32,38 +30,31 @@ service cloud.firestore {
       return isSignedIn() && role() == "parent";
     }
 
-    /* ---------- USERS ---------- */
+    /* USERS */
     match /users/{uid} {
       allow read, create: if isSignedIn() && request.auth.uid == uid;
-      allow update: if false;
+      // REQUIRED for schoolId linking after creation
+      allow update: if isSignedIn() && request.auth.uid == uid;
       allow delete: if false;
     }
 
-    /* ---------- SCHOOLS ---------- */
+    /* SCHOOLS — onboarding safe */
     match /schools/{schoolId} {
       allow create: if isSignedIn()
         && isAdmin()
-        && userDoc().data.schoolId == null;
+        && (
+          !("schoolId" in userDoc().data) ||
+          userDoc().data.schoolId == null
+        );
 
-      allow read, update, delete: if isSignedIn()
+      allow read: if isSignedIn();
+      allow update, delete: if isSignedIn()
         && isAdmin()
         && resource.data.adminUid == request.auth.uid;
     }
 
-    /* ---------- INVITES (TEACHER / PARENT) ---------- */
-    match /invites/{inviteId} {
-
-      allow create: if isSignedIn()
-        && isAdmin()
-        && request.resource.data.schoolId == schoolId();
-
-      // No list / read from client (email-link flow only)
-      allow read, update, delete: if false;
-    }
-
-    /* ---------- CLASSES ---------- */
+    /* CLASSES — LIST SAFE */
     match /classes/{classId} {
-
       allow create: if isSignedIn()
         && isAdmin()
         && request.resource.data.schoolId == schoolId();
@@ -71,7 +62,6 @@ service cloud.firestore {
       allow get: if isSignedIn()
         && resource.data.schoolId == schoolId();
 
-      // 🔥 LIST SAFE RULE (THIS WAS MISSING)
       allow list: if isSignedIn()
         && request.query.where("schoolId", "==", schoolId());
 
@@ -83,18 +73,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    /* ---------- STUDENTS ---------- */
+    /* STUDENTS — LIST SAFE */
     match /students/{studentId} {
+      allow create: if isSignedIn() && isAdmin() && request.resource.data.schoolId == schoolId();
+      
+      allow get: if isSignedIn() && (
+        (isAdmin() && resource.data.schoolId == schoolId()) ||
+        (isTeacher() && resource.data.schoolId == schoolId()) ||
+        (isParent() && resource.data.parentEmail == request.auth.token.email)
+      );
 
-      allow create: if isSignedIn()
-        && isAdmin()
-        && request.resource.data.schoolId == schoolId();
-
-      allow get: if isSignedIn()
-        && resource.data.schoolId == schoolId();
-
-      allow list: if isSignedIn()
-        && request.query.where("schoolId", "==", schoolId());
+      allow list: if isSignedIn() && (
+        (isAdmin() && request.query.where("schoolId", "==", schoolId())) ||
+        (isTeacher() && request.query.where("schoolId", "==", schoolId())) ||
+        (isParent() && request.query.where("parentEmail", "==", request.auth.token.email))
+      );
 
       allow update: if isSignedIn() && (
         (isAdmin() && request.resource.data.schoolId == schoolId()) ||
@@ -104,7 +97,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    /* ---------- TEACHERS PROFILE ---------- */
+    /* INVITES — WRITE ONLY */
+    match /invites/{inviteId} {
+      allow create: if isSignedIn()
+        && isAdmin()
+        && request.resource.data.schoolId == schoolId();
+
+      allow read, update, delete: if false;
+    }
+
+    /* TEACHERS PROFILE */
     match /teachers/{uid} {
       allow create: if isSignedIn() && request.auth.uid == uid;
       allow get: if isSignedIn()
@@ -113,7 +115,7 @@ service cloud.firestore {
       allow update: if request.auth.uid == uid;
     }
 
-    /* ---------- ACADEMIC DATA (LIST-SAFE) ---------- */
+    /* ACADEMIC DATA (LIST-SAFE) */
     match /syllabus/{id} {
       allow create, update, delete: if isSignedIn() && (isAdmin() || isTeacher()) && request.resource.data.schoolId == schoolId();
       allow get: if isSignedIn() && resource.data.schoolId == schoolId();
@@ -136,7 +138,6 @@ service cloud.firestore {
         allow read, write: if isSignedIn() && isTeacher();
     }
 
-    /* ---------- DEFAULT DENY ---------- */
     match /{document=**} {
       allow read, write: if false;
     }

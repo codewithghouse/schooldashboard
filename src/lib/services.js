@@ -27,17 +27,8 @@ export const createSchool = async (schoolData) => {
     const adminUid = auth.currentUser.uid;
 
     try {
-        // 0. Ensure Admin Role is set (Required by rules to create school)
-        const userRef = doc(db, 'users', adminUid);
-        await setDoc(userRef, {
-            uid: adminUid,
-            email: auth.currentUser?.email || '',
-            role: 'admin', // MUST BE 'admin'
-            createdAt: serverTimestamp()
-        }, { merge: true });
-
-        // 1. Create school doc with adminUid
-        const schoolRef = await addDoc(collection(db, 'schools'), {
+        // 2️⃣ School Create Flow (STRICT ORDER)
+        const schoolRef = await addDoc(collection(db, "schools"), {
             name: schoolData.name,
             city: schoolData.city,
             state: schoolData.state || '',
@@ -46,8 +37,7 @@ export const createSchool = async (schoolData) => {
             createdAt: serverTimestamp()
         });
 
-        // 2. IMMEDIATELY link admin → school
-        await updateDoc(userRef, {
+        await updateDoc(doc(db, "users", adminUid), {
             schoolId: schoolRef.id
         });
 
