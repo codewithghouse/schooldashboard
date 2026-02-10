@@ -81,12 +81,38 @@ service cloud.firestore {
 
     /* ACADEMIC DATA — FINAL FIX */
     match /syllabus/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
-    match /weeklyUpdates/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
-    match /announcements/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
+    
+    match /weeklyUpdates/{id} { 
+      allow read: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher" || (userDoc().data.role == "parent" && userDoc().data.schoolId == resource.data.schoolId));
+      allow write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); 
+    }
+
+    match /results/{id} {
+      allow read: if isSignedIn() && (
+        isAdmin() || 
+        userDoc().data.role == "teacher" || 
+        (userDoc().data.role == "parent" && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.parentUid == request.auth.uid)
+      );
+      allow create, update: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher");
+    }
+
+    match /announcements/{id} { 
+      allow read: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher" || (userDoc().data.role == "parent" && userDoc().data.schoolId == resource.data.schoolId));
+      allow write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher");
+    }
+    
     match /mail/{id} { allow create: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
 
-    match /{document=**} {
-      allow read, write: if false;
+    match /teachers/{uid} {
+      allow read: if isSignedIn() && (isAdmin() || userDoc().data.schoolId == resource.data.schoolId);
+      allow write: if isSignedIn() && isAdmin();
+      allow update: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /classes/{classId} {
+      allow list, get: if isSignedIn() && isAdmin();
+      allow create, update, delete: if isSignedIn() && isAdmin();
+      allow read: if isSignedIn() && (userDoc().data.role == "teacher" || (userDoc().data.role == "parent" && userDoc().data.schoolId == resource.data.schoolId));
     }
   }
 }

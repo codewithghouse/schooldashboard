@@ -25,7 +25,8 @@ import {
     AlertCircle,
     CheckCircle2,
     Sparkles,
-    Hash
+    Hash,
+    MessageSquare
 } from 'lucide-react';
 
 const ParentDashboard = () => {
