@@ -21,7 +21,8 @@ service cloud.firestore {
     /* USERS */
     match /users/{uid} {
       allow read, create: if isSignedIn() && request.auth.uid == uid;
-      allow update: if isSignedIn() && request.auth.uid == uid; // REQUIRED for schoolId linking
+      allow update: if isSignedIn() && request.auth.uid == uid; 
+      allow list: if isSignedIn() && isAdmin(); // Allow admins to search users (for email collision check)
       allow delete: if false;
     }
 
