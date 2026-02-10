@@ -22,6 +22,7 @@ import SyllabusTracking from './pages/teacher/SyllabusTracking';
 import WeeklyNotes from './pages/teacher/WeeklyNotes';
 import CommunicationControl from './pages/teacher/CommunicationControl';
 import ProfessionalProof from './pages/teacher/ProfessionalProof';
+import SupportModule from './pages/common/SupportModule';
 import { useAuth } from './context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -90,6 +91,7 @@ const AppRoutes = () => {
         <Route path="students" element={<StudentsModule />} />
         <Route path="syllabus" element={<SyllabusModule />} />
         <Route path="monitoring" element={<MonitoringModule />} />
+        <Route path="support" element={<SupportModule />} />
       </Route>
 
       {/* Teacher Routes */}
@@ -106,12 +108,14 @@ const AppRoutes = () => {
         <Route path="students" element={<TeacherStudents />} />
         <Route path="classes" element={<TeacherClasses />} />
         <Route path="tests" element={<TeacherTests />} />
+        <Route path="support" element={<SupportModule />} />
       </Route>
 
       {/* Parent Routes */}
       <Route path="/parent" element={<DashboardLayout role="parent" />}>
         <Route index element={<Navigate to="/parent/dashboard" replace />} />
         <Route path="dashboard" element={<ParentDashboard />} />
+        <Route path="support" element={<SupportModule />} />
       </Route>
     </Routes>
   );

@@ -325,10 +325,63 @@ export const getMyStudents = async (parentEmail, parentUid = null) => {
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-// --- Other Services ---
-export const uploadSyllabus = async (schoolId, syllabusData) => addDoc(collection(db, 'syllabus'), { ...syllabusData, schoolId, createdAt: serverTimestamp() });
-export const getSyllabus = async (schoolId, classId = null) => {
-    const q = classId ? query(collection(db, 'syllabus'), where("schoolId", "==", schoolId), where("classId", "==", classId)) : query(collection(db, 'syllabus'), where("schoolId", "==", schoolId));
+// --- Support Services ---
+export const createTicket = async (schoolId, ticketData) => {
+    const ticketNo = `TKT-${Math.floor(1000 + Math.random() * 9000)}`;
+    return addDoc(collection(db, 'tickets'), {
+        ...ticketData,
+        ticketNo,
+        schoolId,
+        status: 'open',
+        createdAt: serverTimestamp(),
+        lastUpdated: serverTimestamp()
+    });
+};
+
+export const getTickets = async (schoolId = null, role = null, userId = null) => {
+    let q = collection(db, 'tickets');
+
+    if (userId) {
+        q = query(q, where("userId", "==", userId));
+    } else if (schoolId && role !== 'owner') {
+        q = query(q, where("schoolId", "==", schoolId));
+    }
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const addTicketReply = async (ticketId, reply) => {
+    const ref = doc(db, 'tickets', ticketId);
+    return updateDoc(ref, {
+        replies: arrayUnion({
+            ...reply,
+            timestamp: new Date().toISOString()
+        }),
+        lastUpdated: serverTimestamp()
+    });
+};
+
+export const resolveTicket = async (ticketId) => {
+    const ref = doc(db, 'tickets', ticketId);
+    return updateDoc(ref, { status: 'resolved', lastUpdated: serverTimestamp() });
+};
+
+// --- Other Services Refined ---
+export const uploadSyllabus = async (schoolId, syllabusData) => {
+    // syllabusData: { classId, subject, chapters: [] }
+    return addDoc(collection(db, 'syllabus'), {
+        ...syllabusData,
+        schoolId,
+        createdAt: serverTimestamp()
+    });
+};
+
+export const getSyllabus = async (schoolId, classId = null, subject = null) => {
+    let q = query(collection(db, 'syllabus'), where("schoolId", "==", schoolId));
+    if (classId) q = query(q, where("classId", "==", classId));
+    if (subject) q = query(q, where("subject", "==", subject));
+
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };

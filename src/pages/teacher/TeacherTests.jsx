@@ -17,7 +17,7 @@ const TeacherTests = () => {
         date: '',
         chaptersCovered: [], // Multi-select
     });
-    const [availableChapters, setAvailableChapters] = useState([]);
+    const [availableChaptersRaw, setAvailableChaptersRaw] = useState([]);
 
     // Logic: 
     // 1. Create Test (Metadata)
@@ -36,7 +36,7 @@ const TeacherTests = () => {
             loadInitialData();
         } else {
             setStudents([]);
-            setAvailableChapters([]);
+            setAvailableChaptersRaw([]);
         }
     }, [schoolId, activeClassId]);
 
@@ -47,13 +47,11 @@ const TeacherTests = () => {
             getSyllabus(schoolId, activeClassId)
         ]);
         setStudents(sts);
-        // Flatten available chapters from all syllabus of this class
-        const chapters = syl.flatMap(s => s.chapters);
-        setAvailableChapters(chapters);
+        setAvailableChaptersRaw(syl);
     };
 
     const handleNext = () => {
-        if (!selectedClassId || !testData.subject || !testData.date) {
+        if (!activeClassId || !testData.subject || !testData.date) {
             alert("Please fill all details");
             return;
         }
@@ -85,7 +83,7 @@ const TeacherTests = () => {
             const testRef = await createTest({
                 ...testData,
                 schoolId,
-                classId: selectedClassId,
+                classId: activeClassId,
                 totalMarks: points.total,
                 createdBy: userData.teacherId
             });
@@ -132,8 +130,8 @@ const TeacherTests = () => {
                         onClick={() => setIsTestModalOpen(true)}
                         disabled={!activeClassId}
                         className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${!activeClassId
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 shadow-none'
-                                : 'bg-primary-600 text-white shadow-xl shadow-primary-600/30 hover:bg-primary-700 active:scale-95'
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 shadow-none'
+                            : 'bg-primary-600 text-white shadow-xl shadow-primary-600/30 hover:bg-primary-700 active:scale-95'
                             }`}
                     >
                         <Plus className="w-4 h-4" /> New Test Entry
@@ -174,12 +172,16 @@ const TeacherTests = () => {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                                        <input
-                                            className="w-full px-3 py-2 border rounded-lg"
+                                        <select
+                                            className="w-full px-3 py-2 border rounded-lg outline-none focus:border-primary-500 font-bold"
                                             value={testData.subject}
-                                            onChange={(e) => setTestData({ ...testData, subject: e.target.value })}
-                                            placeholder="Ex. Mathematics"
-                                        />
+                                            onChange={(e) => setTestData({ ...testData, subject: e.target.value, chaptersCovered: [] })}
+                                        >
+                                            <option value="">Select Subject...</option>
+                                            {Array.from(new Set(availableChaptersRaw.map(s => s.subject))).map(sub => (
+                                                <option key={sub} value={sub}>{sub}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
@@ -201,13 +203,15 @@ const TeacherTests = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Chapters Covered</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Chapters/Topics Covered</label>
                                     <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-gray-50 min-h-[60px]">
-                                        {availableChapters.map((chap, i) => (
-                                            <label key={i} className="inline-flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-gray-200 cursor-pointer">
+                                        {availableChaptersRaw.find(s => s.subject === testData.subject)?.chapters?.map((chap, i) => (
+                                            <label key={i} className={`inline-flex items-center gap-2 bg-white px-3 py-1 rounded-full border transition-all cursor-pointer ${testData.chaptersCovered.includes(chap) ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}>
                                                 <input
                                                     type="checkbox"
                                                     value={chap}
+                                                    className="hidden"
+                                                    checked={testData.chaptersCovered.includes(chap)}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
                                                         setTestData(prev => ({
@@ -218,15 +222,16 @@ const TeacherTests = () => {
                                                         }))
                                                     }}
                                                 />
-                                                <span className="text-sm">{chap}</span>
+                                                <span className={`text-xs font-bold ${testData.chaptersCovered.includes(chap) ? 'text-primary-700' : 'text-gray-600'}`}>{chap}</span>
                                             </label>
                                         ))}
-                                        {availableChapters.length === 0 && <span className="text-xs text-gray-400">Select class first or no syllabus found.</span>}
+                                        {!testData.subject && <span className="text-xs text-gray-400">Please select a subject first.</span>}
+                                        {testData.subject && availableChaptersRaw.find(s => s.subject === testData.subject)?.chapters?.length === 0 && <span className="text-xs text-gray-400">No chapters found for this subject.</span>}
                                     </div>
                                 </div>
                                 <div className="flex justify-end gap-3 mt-6">
                                     <button onClick={() => setIsTestModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-                                    <button onClick={handleNext} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">Next</button>
+                                    <button onClick={handleNext} className="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-bold text-sm">Next: Enter Student Scores</button>
                                 </div>
                             </div>
                         ) : (
@@ -265,8 +270,8 @@ const TeacherTests = () => {
                                                             key={chap}
                                                             onClick={() => toggleWeakTopic(std.id, chap)}
                                                             className={`text-xs px-3 py-1.5 rounded-xl border font-bold transition-all ${resultsData[std.id]?.weakTopics?.includes(chap)
-                                                                    ? 'bg-red-50 text-red-600 border-red-200 shadow-sm'
-                                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'
+                                                                ? 'bg-red-50 text-red-600 border-red-200 shadow-sm'
+                                                                : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'
                                                                 } `}
                                                         >
                                                             {chap}

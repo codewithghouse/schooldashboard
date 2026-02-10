@@ -71,6 +71,14 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && isAdmin();
     }
 
+    /* TICKETS — SUPPORT SYSTEM */
+    match /tickets/{ticketId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid || (userDoc().data.role == "teacher" && resource.data.schoolId == userDoc().data.schoolId));
+      allow update: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow delete: if false;
+    }
+
     /* ACADEMIC DATA — FINAL FIX */
     match /syllabus/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
     match /weeklyUpdates/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }

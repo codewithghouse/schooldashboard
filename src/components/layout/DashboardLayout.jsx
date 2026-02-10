@@ -78,6 +78,7 @@ const DashboardLayout = ({ role: requiredRole = 'school' }) => {
             { icon: GraduationCap, label: 'Students', to: '/school/students' },
             { icon: FileText, label: 'Syllabus', to: '/school/syllabus' },
             { icon: Activity, label: 'Monitoring', to: '/school/monitoring' },
+            { icon: Sparkles, label: 'Support Desk', to: '/school/support' },
         ],
         teacher: [
             { icon: LayoutDashboard, label: 'Dashboard Overview', to: '/teacher/dashboard' },
@@ -90,9 +91,11 @@ const DashboardLayout = ({ role: requiredRole = 'school' }) => {
             { icon: Sparkles, label: 'Co-Teacher AI', to: '/teacher/hub' },
             { icon: ShieldCheck, label: 'Parent Link Control', to: '/teacher/communication' },
             { icon: Award, label: 'Professional Proof', to: '/teacher/performance' },
+            { icon: Sparkles, label: 'Support Desk', to: '/teacher/support' },
         ],
         parent: [
             { icon: LayoutDashboard, label: 'Academic Overview', to: '/parent/dashboard' },
+            { icon: Sparkles, label: 'Support Desk', to: '/parent/support' },
         ]
     };
 

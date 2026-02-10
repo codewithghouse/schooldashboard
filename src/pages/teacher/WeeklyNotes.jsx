@@ -174,11 +174,16 @@ const WeeklyNotes = () => {
                                     </div>
                                     <div className="space-y-3">
                                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Chapter/Topic Mastery</label>
-                                        <input
+                                        <select
                                             {...register('chapterCompleted', { required: true })}
                                             className="w-full px-6 py-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none font-bold text-sm focus:bg-white focus:border-indigo-300 transition-all"
-                                            placeholder="e.g. Photosynthesis, Unit 2"
-                                        />
+                                        >
+                                            <option value="">Select Chapter...</option>
+                                            {syllabus.find(s => s.subject === formData.subject)?.chapters?.map((chap, idx) => (
+                                                <option key={idx} value={chap}>{chap}</option>
+                                            ))}
+                                            <option value="Custom Topic">-- Manual Topic (Add to notes) --</option>
+                                        </select>
                                     </div>
                                 </div>
 
