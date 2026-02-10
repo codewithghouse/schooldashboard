@@ -131,9 +131,10 @@ export const inviteTeacher = async (schoolId, teacherData, assignedClassIds = []
 };
 
 export const getTeachers = async (schoolId) => {
-    const q = query(collection(db, 'users'), where("schoolId", "==", schoolId), where("role", "==", "teacher"));
+    // Admin needs to list from the 'teachers' collection which allows admin listing
+    const q = query(collection(db, 'teachers'), where("schoolId", "==", schoolId));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), status: 'active' }));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 export const deleteTeacher = async (schoolId, teacherUid) => {
