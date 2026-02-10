@@ -83,6 +83,7 @@ service cloud.firestore {
     match /syllabus/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
     match /weeklyUpdates/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
     match /announcements/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
+    match /mail/{id} { allow create: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
 
     match /{document=**} {
       allow read, write: if false;

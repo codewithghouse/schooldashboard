@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useClass } from '../../context/ClassContext';
-import { getSyllabus, addWeeklyUpdate } from '../../lib/services';
+import { getSyllabus, addWeeklyUpdate, getStudents, sendEmail } from '../../lib/services';
 import {
     ClipboardList,
     Send,
@@ -63,19 +63,61 @@ const WeeklyNotes = () => {
         if (!activeClassId) return;
         setSubmitting(true);
         try {
+            // 1. Save record in database
             await addWeeklyUpdate({
                 ...data,
                 schoolId,
-                teacherId: userData.teacherId,
-                teacherName: userData.name,
+                teacherId: userData.uid,
+                teacherName: userData.name || 'Teacher',
                 classId: activeClassId,
             });
-            alert("Weekly report dispatched to parents successfully!");
+
+            // 2. Fetch all students to get parent emails
+            const students = await getStudents(schoolId, activeClassId);
+
+            // 3. Trigger Emails to parents
+            const emailPromises = students.map(student => {
+                if (!student.parentEmail) return Promise.resolve();
+
+                const emailHtml = `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                        <h2 style="color: #4f46e5;">Weekly Academic Update</h2>
+                        <p>Hello Parent,</p>
+                        <p>Here is the weekly progress report for <strong>${student.name}</strong> at ${activeClass?.name} - ${activeClass?.section}.</p>
+                        
+                        <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                            <p><strong>Subject:</strong> ${data.subject}</p>
+                            <p><strong>Topic Covered:</strong> ${data.chapterCompleted}</p>
+                            <p><strong>Homework:</strong> ${data.homeworkAssigned || 'None'}</p>
+                        </div>
+                        
+                        <p><strong>Teacher's Note:</strong></p>
+                        <blockquote style="border-left: 4px solid #4f46e5; padding-left: 15px; font-style: italic;">
+                            ${data.generalNotes || 'No specific notes this week.'}
+                        </blockquote>
+                        
+                        <p style="margin-top: 30px; font-size: 12px; color: #6b7280;">
+                            Regards,<br/>
+                            Teacher ${userData.name || ''}
+                        </p>
+                    </div>
+                `;
+
+                return sendEmail(
+                    student.parentEmail,
+                    `Weekly Update: ${data.subject} - ${student.name}`,
+                    emailHtml
+                );
+            });
+
+            await Promise.all(emailPromises);
+
+            alert("Weekly report saved and emails dispatched to parents!");
             reset();
             setPreviewMode(false);
         } catch (error) {
             console.error(error);
-            alert("Failed to dispatch update.");
+            alert("Failed to dispatch update: " + error.message);
         } finally {
             setSubmitting(false);
         }

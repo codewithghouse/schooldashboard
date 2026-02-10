@@ -407,3 +407,13 @@ export const getAnnouncements = async (schoolId, classId = null) => {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
+export const sendEmail = async (to, subject, html) => {
+    return addDoc(collection(db, 'mail'), {
+        to,
+        message: {
+            subject,
+            html
+        },
+        createdAt: serverTimestamp()
+    });
+};
