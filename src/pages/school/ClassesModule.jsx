@@ -12,6 +12,7 @@ const ClassesModule = () => {
     const [teachers, setTeachers] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSettingUp, setIsSettingUp] = useState(false);
+    const [loading, setLoading] = useState(false);
     const { register, handleSubmit, reset } = useForm();
 
     useEffect(() => {
