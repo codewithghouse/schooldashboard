@@ -60,10 +60,13 @@ export const createSchool = async (schoolData) => {
 
 // --- Class Services ---
 export const addClass = async (schoolId, classData) => {
+    // SECURITY: Ensure schoolId is explicitly set from the argument
+    if (!schoolId) throw new Error("School ID missing for addClass");
+
     return await addDoc(collection(db, 'classes'), {
         ...classData,
+        schoolId: schoolId, // Explicit override
         classTeacherId: classData.classTeacherId || null,
-        schoolId,
         createdAt: serverTimestamp()
     });
 };
@@ -76,6 +79,7 @@ export const getClasses = async (schoolId) => {
 
 // --- Teacher Services (Pure Frontend Flow) ---
 export const inviteTeacher = async (schoolId, teacherData, assignedClassIds = []) => {
+    if (!schoolId) throw new Error("School ID missing for inviteTeacher");
     const email = teacherData.email.toLowerCase().trim();
 
     // Check if email already exists with a different role
