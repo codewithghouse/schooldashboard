@@ -28,9 +28,9 @@ service cloud.firestore {
 
     /* SCHOOLS */
     match /schools/{id} {
-      // Relax create permission to allow first-time school registration
       allow create: if isSignedIn();
-      allow read, write: if isSignedIn() && (isAdmin() || resource.data.adminUid == request.auth.uid);
+      allow read: if isSignedIn() && (isAdmin() || userDoc().data.schoolId == id);
+      allow write: if isSignedIn() && (isAdmin() || resource.data.adminUid == request.auth.uid);
     }
 
     /* CLASSES — FINAL FIX for ERR-02 */

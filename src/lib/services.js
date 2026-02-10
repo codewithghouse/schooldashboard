@@ -10,7 +10,8 @@ import {
     query,
     where,
     serverTimestamp,
-    deleteDoc
+    deleteDoc,
+    arrayUnion
 } from 'firebase/firestore';
 import { auth } from './firebase';
 import { sendSignInLinkToEmail } from "firebase/auth";
