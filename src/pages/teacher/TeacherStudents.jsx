@@ -69,8 +69,8 @@ const TeacherStudents = () => {
         reader.onload = async (evt) => {
             setImporting(true);
             try {
-                const bstr = evt.target.result;
-                const wb = XLSX.read(bstr, { type: 'binary' });
+                const dataArray = evt.target.result;
+                const wb = XLSX.read(dataArray, { type: 'array' });
                 const wsname = wb.SheetNames[0];
                 const ws = wb.Sheets[wsname];
                 const data = XLSX.utils.sheet_to_json(ws);
@@ -78,31 +78,31 @@ const TeacherStudents = () => {
                 // Expected format: Name, ParentEmail
                 const formattedStudents = data.map(row => ({
                     name: row.Name || row.name || '',
-                    parentEmail: row['Parent Email'] || row.parentEmail || row.email || '',
+                    parentEmail: String(row['Parent Email'] || row.parentEmail || row.email || '').toLowerCase().trim(),
                     classId: activeClassId,
                     grade: activeClass?.name.replace(/\D/g, '') || "0",
                     section: activeClass?.section || "Common"
-                })).filter(s => s.name && s.parentEmail);
+                })).filter(s => s.name && s.parentEmail && s.parentEmail.includes('@'));
 
                 if (formattedStudents.length === 0) {
-                    alert("No valid student data found in Excel. Please use the template.");
+                    alert("No valid student data found in Excel. Please ensure 'Name' and 'Parent Email' columns exist and are filled correctly.");
                     return;
                 }
 
-                if (window.confirm(`Found ${formattedStudents.length} students. Start bulk enrollment & parent activation?`)) {
+                if (window.confirm(`Found ${formattedStudents.length} valid students. Start bulk enrollment & parent activation?`)) {
                     await bulkAddStudents(schoolId, formattedStudents);
                     alert(`Successfully enrolled ${formattedStudents.length} students and dispatched parent invites!`);
                     fetchStudents();
                 }
             } catch (error) {
-                console.error("Import Error:", error);
-                alert("Failed to parse Excel file.");
+                console.error("Import Error Detail:", error);
+                alert("Failed to parse Excel file: " + error.message);
             } finally {
                 setImporting(false);
                 e.target.value = ''; // Reset input
             }
         };
-        reader.readAsBinaryString(file);
+        reader.readAsArrayBuffer(file);
     };
 
     const downloadTemplate = () => {
