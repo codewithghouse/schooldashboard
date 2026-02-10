@@ -59,65 +59,70 @@ const WeeklyNotes = () => {
         }
     };
 
-    const onSubmit = async (data) => {
+    const onSubmit = async (data, status = 'published') => {
         if (!activeClassId) return;
         setSubmitting(true);
         try {
-            // 1. Save record in database
+            // 1. Save record in database with status
             await addWeeklyUpdate({
                 ...data,
+                status, // 'draft' or 'published'
                 schoolId,
                 teacherId: userData.uid,
                 teacherName: userData.name || 'Teacher',
                 classId: activeClassId,
             });
 
-            // 2. Fetch all students to get parent emails
-            const students = await getStudents(schoolId, activeClassId);
+            if (status === 'published') {
+                // 2. Fetch all students to get parent emails
+                const students = await getStudents(schoolId, activeClassId);
 
-            // 3. Trigger Emails to parents
-            const emailPromises = students.map(student => {
-                if (!student.parentEmail) return Promise.resolve();
+                // 3. Trigger Emails to parents
+                const emailPromises = students.map(student => {
+                    if (!student.parentEmail) return Promise.resolve();
 
-                const emailHtml = `
-                    <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-                        <h2 style="color: #4f46e5;">Weekly Academic Update</h2>
-                        <p>Hello Parent,</p>
-                        <p>Here is the weekly progress report for <strong>${student.name}</strong> at ${activeClass?.name} - ${activeClass?.section}.</p>
-                        
-                        <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                            <p><strong>Subject:</strong> ${data.subject}</p>
-                            <p><strong>Topic Covered:</strong> ${data.chapterCompleted}</p>
-                            <p><strong>Homework:</strong> ${data.homeworkAssigned || 'None'}</p>
+                    const emailHtml = `
+                        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                            <h2 style="color: #4f46e5;">Weekly Academic Update</h2>
+                            <p>Hello Parent,</p>
+                            <p>Here is the weekly progress report for <strong>${student.name}</strong> at ${activeClass?.name} - ${activeClass?.section}.</p>
+                            
+                            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                                <p><strong>Subject:</strong> ${data.subject}</p>
+                                <p><strong>Topic Covered:</strong> ${data.chapterCompleted}</p>
+                                <p><strong>Homework:</strong> ${data.homeworkAssigned || 'None'}</p>
+                            </div>
+                            
+                            <p><strong>Teacher's Note:</strong></p>
+                            <blockquote style="border-left: 4px solid #4f46e5; padding-left: 15px; font-style: italic;">
+                                ${data.generalNotes || 'No specific notes this week.'}
+                            </blockquote>
+                            
+                            <p style="margin-top: 30px; font-size: 12px; color: #6b7280;">
+                                Regards,<br/>
+                                Teacher ${userData.name || ''}
+                            </p>
                         </div>
-                        
-                        <p><strong>Teacher's Note:</strong></p>
-                        <blockquote style="border-left: 4px solid #4f46e5; padding-left: 15px; font-style: italic;">
-                            ${data.generalNotes || 'No specific notes this week.'}
-                        </blockquote>
-                        
-                        <p style="margin-top: 30px; font-size: 12px; color: #6b7280;">
-                            Regards,<br/>
-                            Teacher ${userData.name || ''}
-                        </p>
-                    </div>
-                `;
+                    `;
 
-                return sendEmail(
-                    student.parentEmail,
-                    `Weekly Update: ${data.subject} - ${student.name}`,
-                    emailHtml
-                );
-            });
+                    return sendEmail(
+                        student.parentEmail,
+                        `Weekly Update: ${data.subject} - ${student.name}`,
+                        emailHtml
+                    );
+                });
 
-            await Promise.all(emailPromises);
+                await Promise.all(emailPromises);
+                alert("Weekly report published and emails dispatched!");
+            } else {
+                alert("Weekly report saved as draft.");
+            }
 
-            alert("Weekly report saved and emails dispatched to parents!");
             reset();
             setPreviewMode(false);
         } catch (error) {
             console.error(error);
-            alert("Failed to dispatch update: " + error.message);
+            alert("Action failed: " + error.message);
         } finally {
             setSubmitting(false);
         }
@@ -202,7 +207,7 @@ const WeeklyNotes = () => {
 
                         {/* Primary Content Entry */}
                         <div className="flex-1 p-10 md:p-14">
-                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-10 max-w-2xl mx-auto">
+                            <form onSubmit={handleSubmit((data) => onSubmit(data, 'published'))} className="space-y-10 max-w-2xl mx-auto">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-3">
                                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Teaching Subject</label>
@@ -250,17 +255,18 @@ const WeeklyNotes = () => {
                                 <div className="flex flex-col sm:flex-row gap-4 pt-6">
                                     <button
                                         type="button"
-                                        onClick={() => setPreviewMode(true)}
-                                        className="flex-1 px-8 py-5 bg-white border border-gray-200 text-gray-700 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-3"
+                                        onClick={handleSubmit((data) => onSubmit(data, 'draft'))}
+                                        disabled={submitting}
+                                        className="flex-1 px-8 py-5 bg-white border border-gray-200 text-gray-700 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                                     >
-                                        <Eye className="w-5 h-5" /> Parent View
+                                        Keep as Draft
                                     </button>
                                     <button
                                         type="submit"
                                         disabled={submitting}
                                         className="flex-[2] px-8 py-5 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/30 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
                                     >
-                                        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-5 h-5" /> Dispatch Report</>}
+                                        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-5 h-5" /> Publish to Class</>}
                                     </button>
                                 </div>
                             </form>

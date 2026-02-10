@@ -18,7 +18,8 @@ import {
     Sparkles,
     TrendingUp,
     AlertCircle,
-    Building2
+    Building2,
+    X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useClass } from '../../context/ClassContext';
@@ -49,6 +50,24 @@ const TeacherDashboard = () => {
     const [schoolName, setSchoolName] = useState('');
     const [loading, setLoading] = useState(true);
     const [classProgress, setClassProgress] = useState({});
+
+    // Student Modal State
+    const [selectedClassForStudents, setSelectedClassForStudents] = useState(null);
+    const [classStudents, setClassStudents] = useState([]);
+    const [loadingStudents, setLoadingStudents] = useState(false);
+
+    const handleViewStudents = async (cls) => {
+        setSelectedClassForStudents(cls);
+        setLoadingStudents(true);
+        try {
+            const data = await getStudents(schoolId, cls.id);
+            setClassStudents(data);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoadingStudents(false);
+        }
+    };
 
     useEffect(() => {
         if (schoolId && userData?.uid) {
@@ -219,8 +238,8 @@ const TeacherDashboard = () => {
                         <p className="text-xs font-bold text-gray-500 text-center uppercase tracking-widest">Completion Index: <span className="text-indigo-600">{activeClassId ? `${classProgress[activeClassId] || 0}%` : 'View All'}</span></p>
                     </div>
 
-                    {/* WIDGET 3: Human Spotlight */}
-                    <div className="bg-gray-900 rounded-[44px] p-12 text-white group hover:ring-8 ring-gray-100 transition-all cursor-pointer" onClick={() => navigate('/teacher/students')}>
+                    {/* WIDGET 3: Human Spotlight - NOW CLICKABLE */}
+                    <div className="bg-gray-900 rounded-[44px] p-12 text-white group hover:ring-8 ring-gray-100 transition-all cursor-pointer overflow-hidden">
                         <div className="flex justify-between items-center mb-10">
                             <h3 className="text-xl font-black tracking-tight flex items-center gap-3">
                                 <Users className="w-6 h-6 text-primary-400" /> Student 360
@@ -228,15 +247,18 @@ const TeacherDashboard = () => {
                             <ArrowRight className="w-5 h-5 text-white/30 group-hover:text-primary-400 group-hover:translate-x-1 transition-all" />
                         </div>
                         <div className="space-y-6">
-                            <p className="text-xs text-gray-400 font-medium leading-relaxed">Active student rosters for your context.</p>
+                            <p className="text-xs text-gray-400 font-medium leading-relaxed">Click a class to view student-parent link status.</p>
                             <div className="flex flex-col gap-3">
                                 {contextClasses.slice(0, 3).map(c => (
-                                    <div key={c.id} className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl hover:bg-white/10 transition-colors">
-                                        <div className="w-8 h-8 rounded-xl bg-primary-600 flex items-center justify-center font-black text-[10px]">{c.grade || c.name.replace('Class ', '')}</div>
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-bold truncate">Section {c.section}</p>
-                                            <p className="text-[9px] text-gray-500 font-medium">{c.subject}</p>
+                                    <div key={c.id} onClick={() => handleViewStudents(c)} className="flex items-center justify-between bg-white/5 p-4 rounded-2xl hover:bg-white/10 transition-colors group/row">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center font-black text-xs">{c.grade}{c.section}</div>
+                                            <div>
+                                                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-widest">{c.subject}</p>
+                                                <p className="text-sm font-bold text-gray-100">Section {c.section}</p>
+                                            </div>
                                         </div>
+                                        <ChevronRight className="w-4 h-4 text-gray-600 group-hover/row:text-primary-400" />
                                     </div>
                                 ))}
                                 {contextClasses.length > 3 && (
@@ -340,6 +362,54 @@ const TeacherDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Student Grid Modal */}
+            {selectedClassForStudents && (
+                <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[50px] max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+                        <div className="p-10 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h3 className="text-3xl font-black text-gray-900 italic tracking-tight">{selectedClassForStudents.grade}{selectedClassForStudents.section} • Student Roster</h3>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Cross-referencing Parent Link Status</p>
+                            </div>
+                            <button onClick={() => setSelectedClassForStudents(null)} className="p-4 bg-white hover:bg-red-50 hover:text-red-600 rounded-full shadow-sm transition-all border border-gray-100">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-10">
+                            {loadingStudents ? (
+                                <div className="flex flex-col items-center justify-center py-20">
+                                    <Loader2 className="w-12 h-12 text-primary-600 animate-spin mb-4" />
+                                    <p className="text-xs font-black uppercase tracking-widest text-gray-400">Loading Cohort Data...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {classStudents.map(student => (
+                                        <div key={student.id} className="p-6 bg-gray-50 rounded-3xl border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-primary-100 transition-all">
+                                            <div className="flex items-center gap-5">
+                                                <div className="w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center font-black text-primary-600 text-lg shadow-inner">
+                                                    {student.name?.[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-gray-900 italic">{student.name}</p>
+                                                    <p className="text-[10px] text-gray-400 font-medium lowercase italic">{student.parentEmail}</p>
+                                                </div>
+                                            </div>
+                                            <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest italic border ${student.parentUid ? 'bg-green-50 text-green-600 border-green-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                                {student.parentUid ? 'Linked' : 'Pending'}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {classStudents.length === 0 && (
+                                        <p className="col-span-full text-center py-20 text-gray-400 font-black uppercase tracking-widest italic opacity-40">No students enrolled in this class yet.</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
