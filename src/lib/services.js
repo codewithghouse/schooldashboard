@@ -67,10 +67,17 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://school-backend-
 const triggerProductionEmail = async (type, payload) => {
     try {
         console.log(`📧 Dispatching ${type} email via Render...`);
-        const response = await fetch(`${BACKEND_URL}/send-invite`, {
+        // type 'parent' -> role 'parent'
+        const response = await fetch(`${BACKEND_URL}/invite-user`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type, ...payload })
+            body: JSON.stringify({
+                role: type === 'parent' ? 'parent' : type,
+                schoolId: payload.schoolId,
+                studentId: payload.studentId,
+                email: payload.email,
+                ...payload
+            })
         });
 
         if (!response.ok) {
@@ -83,21 +90,20 @@ const triggerProductionEmail = async (type, payload) => {
 };
 
 // --- Teacher Services (Production Flow) ---
+// --- 85: Teacher Services (Production Flow) ---
 export const inviteTeacher = async (schoolId, teacherData, assignedClassIds = []) => {
     // Principal Architect Decision: 
     // Move Firestore Write + Email Trigger to Backend to ELIMINATE CORS.
     // Frontend is now a clean 'Request' layer.
 
-    const school = await getSchool(schoolId);
-
-    const response = await fetch(`${BACKEND_URL}/invite-teacher`, {
+    const response = await fetch(`${BACKEND_URL}/invite-user`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+            role: 'teacher',
             email: teacherData.email.toLowerCase().trim(),
             name: teacherData.name,
             schoolId,
-            schoolName: school?.name || 'AcademiVis',
             subjects: teacherData.subjects || [],
             classIds: assignedClassIds
         })
@@ -135,28 +141,36 @@ export const runAtomicOnboarding = async (firebaseUser, inviteDoc) => {
             transaction.set(userRef, {
                 uid,
                 email: email.toLowerCase(),
-                role: 'teacher',
+                role: inviteData.role, // Handle teacher or parent
                 schoolId: inviteData.schoolId,
                 createdAt: serverTimestamp()
             });
 
-            // 2. Create Teacher Profile
-            transaction.set(teacherRef, {
-                uid,
-                email: email.toLowerCase(),
-                name: inviteData.name,
-                schoolId: inviteData.schoolId,
-                subjects: inviteData.subjects || [],
-                status: 'active',
-                createdAt: serverTimestamp()
-            });
+            // 2. Role-specific logic
+            if (inviteData.role === 'teacher') {
+                transaction.set(teacherRef, {
+                    uid,
+                    email: email.toLowerCase(),
+                    name: inviteData.name,
+                    schoolId: inviteData.schoolId,
+                    subjects: inviteData.subjects || [],
+                    status: 'active',
+                    createdAt: serverTimestamp()
+                });
 
-            // 3. Link Classes to UID
-            const classIds = inviteData.classIds || [];
-            classIds.forEach(classId => {
-                const classRef = doc(db, "classes", classId);
-                transaction.update(classRef, { classTeacherId: uid });
-            });
+                // Link Classes to Teacher UID
+                const classIds = inviteData.classIds || [];
+                classIds.forEach(classId => {
+                    const classRef = doc(db, "classes", classId);
+                    transaction.update(classRef, { classTeacherId: uid });
+                });
+            } else if (inviteData.role === 'parent') {
+                // Link Student to Parent UID
+                if (inviteData.studentId) {
+                    const studentRef = doc(db, "students", inviteData.studentId);
+                    transaction.update(studentRef, { parentUid: uid });
+                }
+            }
 
             // 4. Mark Invite as Accepted
             transaction.update(inviteRef, {
@@ -231,7 +245,8 @@ export const addStudent = async (schoolId, studentData) => {
 
     await triggerProductionEmail('parent', {
         email: studentData.parentEmail,
-        schoolName: (await getSchool(schoolId))?.name || 'AcademiVis',
+        schoolId,
+        studentId: docRef.id,
         studentName: studentData.name
     });
 
@@ -239,7 +254,6 @@ export const addStudent = async (schoolId, studentData) => {
 };
 
 export const bulkAddStudents = async (schoolId, studentsArray) => {
-    const school = await getSchool(schoolId);
     const promises = studentsArray.map(async (student) => {
         const docRef = await addDoc(collection(db, 'students'), {
             ...student,
@@ -248,9 +262,10 @@ export const bulkAddStudents = async (schoolId, studentsArray) => {
             createdAt: serverTimestamp()
         });
 
-        triggerProductionEmail('parent', {
+        await triggerProductionEmail('parent', {
             email: student.parentEmail,
-            schoolName: school?.name || 'AcademiVis',
+            schoolId,
+            studentId: docRef.id,
             studentName: student.name
         });
 

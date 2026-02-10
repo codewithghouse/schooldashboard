@@ -25,6 +25,8 @@ import ProfessionalProof from './pages/teacher/ProfessionalProof';
 import { useAuth } from './context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
+import AcceptInvite from './pages/auth/AcceptInvite';
+
 // Centralized Routing Orchestrator
 const AppRoutes = () => {
   const { user, role, userData, loading } = useAuth();
@@ -77,6 +79,7 @@ const AppRoutes = () => {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/school-onboarding" element={<SchoolOnboarding />} />
+      <Route path="/accept-invite" element={<AcceptInvite />} />
 
       {/* School Admin Routes */}
       <Route path="/school" element={<DashboardLayout role="school_admin" />}>
