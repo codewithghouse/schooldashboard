@@ -124,10 +124,55 @@ export const inviteTeacher = async (schoolId, teacherData, assignedClassIds = []
 };
 
 export const getTeachers = async (schoolId) => {
-    // Admin needs to list from the 'teachers' collection which allows admin listing
-    const q = query(collection(db, 'teachers'), where("schoolId", "==", schoolId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    if (!schoolId) return [];
+
+    // 1. Fetch Active Profiled Teachers
+    const teachersQ = query(collection(db, 'teachers'), where("schoolId", "==", schoolId));
+    const teachersSnap = await getDocs(teachersQ);
+    const activeTeachers = teachersSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        status: 'active'
+    }));
+
+    const activeEmails = new Set(activeTeachers.map(t => t.email.toLowerCase()));
+
+    // 2. Cross-reference with 'users' collection (The Fail-safe)
+    const usersQ = query(collection(db, 'users'),
+        where("schoolId", "==", schoolId),
+        where("role", "==", "teacher")
+    );
+    const usersSnap = await getDocs(usersQ);
+    usersSnap.docs.forEach(uDoc => {
+        const uData = uDoc.data();
+        const email = uData.email.toLowerCase();
+        if (!activeEmails.has(email)) {
+            activeTeachers.push({
+                id: uDoc.id,
+                uid: uDoc.id,
+                ...uData,
+                status: 'active' // They are logged in, just missing profile doc
+            });
+            activeEmails.add(email);
+        }
+    });
+
+    // 3. Fetch Pending Invites from 'invites' collection
+    const invitesQ = query(collection(db, 'invites'),
+        where("schoolId", "==", schoolId),
+        where("status", "==", "pending")
+    );
+    const invitesSnap = await getDocs(invitesQ);
+    const pendingInvites = invitesSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        status: 'pending'
+    }));
+
+    // Filter out redundant invites if they've already joined
+    const filteredInvites = pendingInvites.filter(inv => !activeEmails.has(inv.email.toLowerCase()));
+
+    return [...activeTeachers, ...filteredInvites];
 };
 
 export const updateTeacherDetails = async (schoolId, teacherId, updateData, assignedClassIds = []) => {
@@ -156,7 +201,21 @@ export const updateTeacherDetails = async (schoolId, teacherId, updateData, assi
     return true;
 };
 
-export const deleteTeacher = async (schoolId, teacherUid) => {
+export const deleteTeacher = async (schoolId, teacherId) => {
+    if (!teacherId) return;
+
+    // 1. Check if it's an invite or an active teacher
+    const inviteRef = doc(db, 'invites', teacherId);
+    const inviteSnap = await getDoc(inviteRef);
+
+    if (inviteSnap.exists()) {
+        await deleteDoc(inviteRef);
+        return { success: true, type: 'invite' };
+    }
+
+    // 2. Active Teacher Flow
+    const teacherUid = teacherId;
+
     // Unassign classes
     const classesQuery = query(collection(db, 'classes'), where("classTeacherId", "==", teacherUid));
     const classesSnap = await getDocs(classesQuery);
@@ -164,8 +223,9 @@ export const deleteTeacher = async (schoolId, teacherUid) => {
     await Promise.all(unassignPromises);
 
     await deleteDoc(doc(db, 'users', teacherUid)).catch(() => { });
-    // Note: We don't delete auth user here as it's not possible from client SDK
-    return { success: true };
+    await deleteDoc(doc(db, 'teachers', teacherUid)).catch(() => { });
+
+    return { success: true, type: 'active' };
 };
 
 // --- Student Services ---
