@@ -89,6 +89,19 @@ export const inviteTeacher = async (schoolId, teacherData, assignedClassIds = []
         throw new Error("This email is already registered with a role. One email = one role.");
     }
 
+    // 0. Create Invite Document in Firestore (Required for Admin Dashboard Tracking)
+    await addDoc(collection(db, 'invites'), {
+        email: email,
+        role: 'teacher',
+        schoolId: schoolId,
+        name: teacherData.name,
+        subjects: teacherData.subjects || [],
+        assignedClassIds: assignedClassIds,
+        invitedBy: auth.currentUser.uid,
+        status: 'pending',
+        createdAt: serverTimestamp()
+    });
+
     const params = new URLSearchParams({
         role: 'teacher',
         schoolId: schoolId,

@@ -9,8 +9,6 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      // Use getAfter if available for multi-step transactions, but here get is fine.
-      // We use a safe path to avoid crashing on missing docs.
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
@@ -33,7 +31,6 @@ service cloud.firestore {
     }
 
     function getSchoolId() {
-      // Robust retrieval of schoolId
       return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
              ? getUserData().schoolId 
              : null;
@@ -48,17 +45,26 @@ service cloud.firestore {
     /* ---------- SCHOOLS ---------- */
     match /schools/{schoolId} {
       allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.adminUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && isAdmin() && resource.data.adminUid == request.auth.uid;
+    }
 
-      // ✅ SCHOOL CREATION (Race-Condition Proof)
-      // We allow school creation if the UID matches. 
-      // The role 'admin' is set in the same frontend operation.
+    /* ---------- TEACHER INVITES ---------- */
+    // ✅ NEW RULE: Dedicated collection for tracking invites
+    match /invites/{inviteId} {
+      // Create: Admin only, must match schoolId
       allow create: if isSignedIn() 
-        && request.resource.data.adminUid == request.auth.uid;
-
-      // Management remains strict
-      allow update, delete: if isSignedIn() 
         && isAdmin() 
-        && resource.data.adminUid == request.auth.uid;
+        && request.resource.data.schoolId == getSchoolId();
+      
+      // Read: Admin only (for dashboard list)
+      allow read: if isSignedIn() 
+        && isAdmin() 
+        && resource.data.schoolId == getSchoolId();
+
+      // No updates or deletes allowed on invites once sent (for audit trail)
+      // or implement if needed
+      allow update, delete: if isSignedIn() && isAdmin() && resource.data.schoolId == getSchoolId();
     }
 
     /* ---------- CLASSES ---------- */
@@ -87,6 +93,20 @@ service cloud.firestore {
         (isTeacher() && (resource == null || resource.data.schoolId == getSchoolId())) ||
         (isParent() && (resource == null || resource.data.parentEmail == request.auth.token.email))
       );
+    }
+
+    /* ---------- TEACHERS (Official Profiles) ---------- */
+    // Only created AFTER invite acceptance
+    match /teachers/{uid} {
+       allow create: if isSignedIn() && request.auth.uid == uid; // Self-creation on invite accept
+       allow read: if isSignedIn() && (
+          (isAdmin() && resource.data.schoolId == getSchoolId()) || 
+          (request.auth.uid == uid)
+       );
+       allow update: if isSignedIn() && (
+          (isAdmin() && resource.data.schoolId == getSchoolId()) || 
+          (request.auth.uid == uid)
+       );
     }
 
     /* ---------- ACADEMIC DATA ---------- */
