@@ -40,6 +40,15 @@ import {
 
 const DEMO_MODE = true;
 
+const DUMMY_STUDENT = {
+    id: "demo-std-123",
+    name: "Mohammad Aryan",
+    grade: "7",
+    section: "A",
+    schoolId: "demo-school",
+    classId: "demo-class"
+};
+
 const ParentDashboard = () => {
     const { user, userData, schoolId: authSchoolId } = useAuth();
     const [activeTab, setActiveTab] = useState('overview');
@@ -62,9 +71,12 @@ const ParentDashboard = () => {
             if (!user?.email) return;
             try {
                 const myStudents = await getMyStudents(user.email, user.uid);
-                setStudents(myStudents);
                 if (myStudents.length > 0) {
+                    setStudents(myStudents);
                     setSelectedStudent(myStudents[0]);
+                } else if (DEMO_MODE) {
+                    setStudents([DUMMY_STUDENT]);
+                    setSelectedStudent(DUMMY_STUDENT);
                 }
                 const myTickets = await getTickets(sId, 'parent', user.uid);
                 setTickets(myTickets.sort((a, b) => b.createdAt?.toDate() - a.createdAt?.toDate()));
@@ -85,6 +97,28 @@ const ParentDashboard = () => {
 
     const loadStudentDetail = async () => {
         if (!selectedStudent || !sId) return;
+
+        if (selectedStudent.id === "demo-std-123") {
+            // Provide dummy details for demo student
+            setResults([
+                { subject: "Mathematics", marksScored: 88, totalMarks: 100, createdAt: { toDate: () => new Date() } },
+                { subject: "Physics", marksScored: 75, totalMarks: 100, createdAt: { toDate: () => new Date() } },
+                { subject: "English", marksScored: 92, totalMarks: 100, createdAt: { toDate: () => new Date() } }
+            ]);
+            setUpdates([
+                {
+                    subject: "Algebraic Intelligence",
+                    chapterCompleted: "4.2",
+                    generalNotes: "Mohammad has shown exceptional logic in quadratic equations this week.",
+                    homeworkAssigned: "Exercise 4.5 Completion",
+                    status: "published",
+                    createdAt: { toDate: () => new Date() }
+                }
+            ]);
+            setClassInfo({ id: "demo-class", name: "Grade 7", section: "A" });
+            return;
+        }
+
         try {
             const [stdResults, stdUpdates, stdClass] = await Promise.all([
                 getStudentResults(selectedStudent.id),
