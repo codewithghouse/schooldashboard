@@ -66,37 +66,65 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://school-backend-
 
 const triggerProductionEmail = async (type, payload) => {
     try {
-        console.log(`📧 Dispatching ${type} email via Render...`);
-        // type 'parent' -> role 'parent'
-        const response = await fetch(`${BACKEND_URL}/invite-user`, {
+        console.log(`📧 Dispatching ${type} invite via Backend + Firebase...`);
+        // 1. Create Invite Doc
+        const response = await fetch(`${BACKEND_URL}/create-invite`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 role: type === 'parent' ? 'parent' : type,
                 schoolId: payload.schoolId,
                 studentId: payload.studentId,
-                email: payload.email,
+                email: payload.email.toLowerCase().trim(),
                 ...payload
             })
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(errorText || "Backend failed to send email");
+            throw new Error(errorText || "Backend failed to create invite");
         }
+
+        const { inviteId } = await response.json();
+
+        // 2. Transmit Link via Firebase Auth
+        const actionCodeSettings = {
+            url: `${window.location.origin}/accept-invite?id=${inviteId}`,
+            handleCodeInApp: true,
+        };
+
+        await sendSignInLinkToEmail(auth, payload.email.toLowerCase().trim(), actionCodeSettings);
+
+        // Note: For students, we might not want to overwrite teacher's localStorage 
+        // if the admin is the one sending. But usually the one receiving the email 
+        // will have it in the link or they can just re-enter it.
     } catch (error) {
-        console.error(`❌ Email Error:`, error.message);
+        console.error(`❌ Invite Error:`, error.message);
     }
 };
 
+export const finalizeOnboarding = async (uid, email, inviteId) => {
+    const response = await fetch(`${BACKEND_URL}/finalize-invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, email, inviteId })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Onboarding finalization failed");
+    }
+
+    return await response.json();
+};
+
 // --- Teacher Services (Production Flow) ---
+import { sendSignInLinkToEmail } from "firebase/auth";
+
 // --- 85: Teacher Services (Production Flow) ---
 export const inviteTeacher = async (schoolId, teacherData, assignedClassIds = []) => {
-    // Principal Architect Decision: 
-    // Move Firestore Write + Email Trigger to Backend to ELIMINATE CORS.
-    // Frontend is now a clean 'Request' layer.
-
-    const response = await fetch(`${BACKEND_URL}/invite-user`, {
+    // 1. Create Invite Document in Backend
+    const response = await fetch(`${BACKEND_URL}/create-invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,81 +139,24 @@ export const inviteTeacher = async (schoolId, teacherData, assignedClassIds = []
 
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to invite teacher via backend");
+        throw new Error(errorData.error || "Failed to create invite record");
     }
 
-    const result = await response.json();
-    console.log("✅ Teacher invite request handled by backend.");
-    return result.inviteId;
-};
+    const { inviteId } = await response.json();
 
-/**
- * ATOMIC ONBOARDING (TRANSITION: Email -> UID)
- * This is the ONLY place where a teacher is formally created in /users and /teachers
- * And where classes are formally linked to their UID.
- */
-import { runTransaction } from "firebase/firestore";
+    // 2. Send Firebase Auth Email Link
+    const actionCodeSettings = {
+        url: `${window.location.origin}/accept-invite?id=${inviteId}`,
+        handleCodeInApp: true,
+    };
 
-export const runAtomicOnboarding = async (firebaseUser, inviteDoc) => {
-    const { uid, email } = firebaseUser;
-    const inviteData = inviteDoc.data();
-    const inviteId = inviteDoc.id;
+    await sendSignInLinkToEmail(auth, teacherData.email.toLowerCase().trim(), actionCodeSettings);
 
-    try {
-        await runTransaction(db, async (transaction) => {
-            const userRef = doc(db, "users", uid);
-            const teacherRef = doc(db, "teachers", uid);
-            const inviteRef = doc(db, "invites", inviteId);
+    // Store email locally for the verification step
+    window.localStorage.setItem('emailForSignIn', teacherData.email.toLowerCase().trim());
 
-            // 1. Create User Document (Single Source of Truth)
-            transaction.set(userRef, {
-                uid,
-                email: email.toLowerCase(),
-                role: inviteData.role, // Handle teacher or parent
-                schoolId: inviteData.schoolId,
-                createdAt: serverTimestamp()
-            });
-
-            // 2. Role-specific logic
-            if (inviteData.role === 'teacher') {
-                transaction.set(teacherRef, {
-                    uid,
-                    email: email.toLowerCase(),
-                    name: inviteData.name,
-                    schoolId: inviteData.schoolId,
-                    subjects: inviteData.subjects || [],
-                    status: 'active',
-                    createdAt: serverTimestamp()
-                });
-
-                // Link Classes to Teacher UID
-                const classIds = inviteData.classIds || [];
-                classIds.forEach(classId => {
-                    const classRef = doc(db, "classes", classId);
-                    transaction.update(classRef, { classTeacherId: uid });
-                });
-            } else if (inviteData.role === 'parent') {
-                // Link Student to Parent UID
-                if (inviteData.studentId) {
-                    const studentRef = doc(db, "students", inviteData.studentId);
-                    transaction.update(studentRef, { parentUid: uid });
-                }
-            }
-
-            // 4. Mark Invite as Accepted
-            transaction.update(inviteRef, {
-                status: 'accepted',
-                acceptedAt: serverTimestamp(),
-                uid: uid
-            });
-        });
-
-        console.log("✅ [System] Atomic Onboarding Complete for:", email);
-        return true;
-    } catch (error) {
-        console.error("❌ Onboarding Transaction Failed:", error);
-        throw error;
-    }
+    console.log("✅ Invitation link sent via Firebase.");
+    return inviteId;
 };
 
 export const getTeachers = async (schoolId) => {

@@ -1,16 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, signOut as firebaseSignOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import {
-    doc,
-    getDoc,
-    query,
-    collection,
-    where,
-    getDocs,
-    limit
-} from 'firebase/firestore';
-import { runAtomicOnboarding } from '../lib/services';
+import { doc, getDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -39,8 +30,6 @@ export const AuthProvider = ({ children }) => {
             setLoading(true);
             try {
                 const uid = firebaseUser.uid;
-
-                // 1. Check if user already exists in /users (Production source of truth)
                 const userRef = doc(db, "users", uid);
                 const userSnap = await getDoc(userRef);
 
@@ -48,49 +37,19 @@ export const AuthProvider = ({ children }) => {
                     const data = userSnap.data();
                     setUser(firebaseUser);
                     setUserData(data);
-                    setRole(data.role); // school_admin or teacher
+                    setRole(data.role);
                     setSchoolId(data.schoolId);
                 } else {
-                    console.log("No user document found. Checking for pending invites...");
-
-                    // 2. CHECK FOR PENDING INVITE (Email based discovery)
-                    const inviteQuery = query(
-                        collection(db, "invites"),
-                        where("email", "==", firebaseUser.email.toLowerCase()),
-                        where("status", "==", "pending"),
-                        limit(1)
-                    );
-                    const inviteSnap = await getDocs(inviteQuery);
-
-                    if (!inviteSnap.empty) {
-                        const inviteDoc = inviteSnap.docs[0];
-                        console.log("🔥 Found Pending Invite! Starting Atomic Onboarding via Transaction...");
-
-                        // 3. RUN ATOMIC TRANSACTION (All-or-Nothing)
-                        await runAtomicOnboarding(firebaseUser, inviteDoc);
-
-                        // 4. Fetch the newly created profile
-                        const freshSnap = await getDoc(userRef);
-                        const data = freshSnap.data();
-
-                        setUser(firebaseUser);
-                        setUserData(data);
-                        setRole(data.role);
-                        setSchoolId(data.schoolId);
-                        console.log("✅ [Auth] Onboarding Successful.");
-                    } else {
-                        // User is logged in but has no /users doc and no /invites doc
-                        // Likely a stray login or admin who hasn't completed setup
-                        setUser(firebaseUser);
-                        setUserData(null);
-                        setRole(null);
-                        setSchoolId(null);
-                    }
+                    // This case happens during the onboarding flow 
+                    // before /finalize-invite is called.
+                    setUser(firebaseUser);
+                    setUserData(null);
+                    setRole(null);
+                    setSchoolId(null);
                 }
 
             } catch (error) {
                 console.error("🔥 Auth Sync Critical Error:", error.code, error.message);
-                // Ensure state isn't stuck on loading if transaction fails
             } finally {
                 setLoading(false);
             }
@@ -109,4 +68,3 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     );
 };
-
