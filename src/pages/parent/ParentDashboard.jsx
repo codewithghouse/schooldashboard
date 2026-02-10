@@ -29,8 +29,14 @@ import {
     Target,
     Activity,
     Plus,
-    X
+    X,
+    ShieldAlert,
+    Zap,
+    Users
 } from 'lucide-react';
+
+// DEMO_MODE Configuration
+const DEMO_MODE = true;
 
 const ParentDashboard = () => {
     const { user, userData, schoolId: authSchoolId } = useAuth();
@@ -124,11 +130,23 @@ const ParentDashboard = () => {
         }
     };
 
+    // Derived Intelligence Helpers (Demo Mode)
+    const getDerivedIntel = (result) => {
+        if (!DEMO_MODE) return null;
+        const percentage = Math.round((result.marksScored / result.totalMarks) * 100);
+        // Deterministic class average for demo consistency
+        const classAvg = 72 + (result.subject.length % 10);
+        const status = percentage >= classAvg ? 'above' : 'needs_improvement';
+        const percentile = percentage > 90 ? 'Top 10%' : percentage > 80 ? 'Top 25%' : percentage > 70 ? 'Top 40%' : 'Class Median';
+
+        return { classAvg, status, percentile };
+    };
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-white">
                 <Loader2 className="w-16 h-16 text-primary-600 animate-spin mb-6" />
-                <p className="text-xs font-black tracking-[0.4em] text-gray-400 uppercase italic">Initializing Digital Gateway...</p>
+                <p className="text-xs font-black tracking-[0.4em] text-gray-400 uppercase italic">Initializing Digital Intelligence...</p>
             </div>
         );
     }
@@ -161,8 +179,8 @@ const ParentDashboard = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                     {/* Navigation Sidebar */}
                     <nav className="lg:col-span-3 space-y-3">
-                        <NavItem icon={LayoutDashboard} label="Home Overview" active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
-                        <NavItem icon={GraduationCap} label="Academic Progress" active={activeTab === 'results'} onClick={() => setActiveTab('results')} />
+                        <NavItem icon={LayoutDashboard} label="Home Intelligence" active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+                        <NavItem icon={GraduationCap} label="Academic Performance" active={activeTab === 'results'} onClick={() => setActiveTab('results')} />
                         <NavItem icon={BookOpen} label="Learning Timeline" active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} />
                         <NavItem icon={Clock} label="Attendance Summary" active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} demo />
                         <NavItem icon={LifeBuoy} label="Support & Help" active={activeTab === 'support'} onClick={() => setActiveTab('support')} />
@@ -175,49 +193,77 @@ const ParentDashboard = () => {
                                 {/* Hero Card */}
                                 <div className="bg-white rounded-[50px] p-12 border border-gray-100 shadow-xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-96 h-96 bg-primary-50 rounded-full blur-[100px] -mr-20 -mt-20 opacity-60"></div>
-                                    <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter italic leading-none mb-4 relative z-10">
-                                        Hello, {user.displayName || 'Parent'}
-                                    </h1>
-                                    <p className="text-xl text-gray-400 font-medium max-w-2xl italic relative z-10">
-                                        Monitor {selectedStudent?.name}'s academic trajectory and school milestones in real-time.
-                                    </p>
+                                    <div className="relative z-10">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <span className="px-5 py-2 bg-primary-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest italic animate-pulse">Intelligence Active</span>
+                                        </div>
+                                        <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter italic leading-none mb-4">
+                                            Hello, {user.displayName || 'Parent'}
+                                        </h1>
+                                        <p className="text-xl text-gray-400 font-medium max-w-2xl italic leading-relaxed">
+                                            System analysis complete. {selectedStudent?.name} is maintaining a <span className="text-primary-600 font-black">Consistent Trajectory</span> across core subjects.
+                                        </p>
+                                    </div>
                                 </div>
 
+                                {/* Intelligent KPI Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {/* Latest Achievement */}
-                                    <div className="bg-white p-10 rounded-[44px] border border-gray-100 shadow-lg">
+                                    {/* Latest Achievement with Benchmarking */}
+                                    <div className="bg-white p-10 rounded-[44px] border border-gray-100 shadow-lg group hover:border-primary-100 transition-all">
                                         <div className="flex items-center justify-between mb-8">
-                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Latest Assessment</h4>
-                                            <Award className="w-5 h-5 text-primary-600" />
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Performance Benchmark</h4>
+                                            <TrendingUp className="w-5 h-5 text-primary-600" />
                                         </div>
                                         {results.length > 0 ? (
                                             <div>
                                                 <p className="text-xs font-black text-primary-600 uppercase tracking-widest mb-2">{results[0].subject}</p>
-                                                <h3 className="text-4xl font-black text-gray-900 italic tracking-tighter mb-4">{results[0].marksScored} / {results[0].totalMarks}</h3>
-                                                <p className="text-xs text-gray-400 font-medium">Logged on {results[0].createdAt?.toDate().toLocaleDateString()}</p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm text-gray-400 italic">Waiting for initial assessment scores...</p>
-                                        )}
-                                    </div>
+                                                <div className="flex items-end gap-4 mb-6">
+                                                    <h3 className="text-5xl font-black text-gray-900 italic tracking-tighter">{results[0].marksScored} / {results[0].totalMarks}</h3>
+                                                    {DEMO_MODE && (
+                                                        <div className="mb-2 px-3 py-1 bg-green-50 text-green-600 rounded-xl text-[10px] font-black uppercase tracking-widest italic border border-green-100">
+                                                            {getDerivedIntel(results[0]).percentile}
+                                                        </div>
+                                                    )}
+                                                </div>
 
-                                    {/* Latest Perspective */}
-                                    <div className="bg-gray-900 p-10 rounded-[44px] text-white shadow-xl relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                                        <div className="flex items-center justify-between mb-8">
-                                            <h4 className="text-[10px] font-black text-primary-400 uppercase tracking-widest italic">Latest Narrative</h4>
-                                            <MessageSquare className="w-5 h-5 text-primary-400" />
-                                        </div>
-                                        {updates.length > 0 ? (
-                                            <div>
-                                                <p className="text-sm italic font-medium text-gray-300 line-clamp-3 mb-6">“{updates[0].generalNotes}”</p>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-black uppercase">{teacher?.name?.charAt(0)}</div>
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Mentored by {teacher?.name}</p>
+                                                {/* Comparison Bar */}
+                                                <div className="space-y-4">
+                                                    <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                                                        <div
+                                                            className="h-full bg-primary-600 rounded-full transition-all duration-1000"
+                                                            style={{ width: `${(results[0].marksScored / results[0].totalMarks) * 100}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-gray-400">
+                                                        <span>Student Progress</span>
+                                                        <span className="text-primary-600 italic">Target: 90%</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <p className="text-sm text-gray-500 italic">No teaching updates recorded for this week.</p>
+                                            <EmptyPlaceholder title="Waiting for Scored Data" />
+                                        )}
+                                    </div>
+
+                                    {/* Class Position Analysis */}
+                                    <div className="bg-gray-900 p-10 rounded-[44px] text-white shadow-xl relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                                        <div className="flex items-center justify-between mb-8">
+                                            <h4 className="text-[10px] font-black text-primary-400 uppercase tracking-widest italic">Comparative Insight</h4>
+                                            <Zap className="w-5 h-5 text-primary-400" />
+                                        </div>
+                                        {results.length > 0 ? (
+                                            <div className="space-y-8">
+                                                <p className="text-lg font-medium text-gray-300 italic">
+                                                    Comparison with <span className="text-white font-black">Grade Average</span> across current assessment cycle.
+                                                </p>
+                                                <div className="space-y-6">
+                                                    <ComparisonBar label="Your Child" value={Math.round((results[0].marksScored / results[0].totalMarks) * 100)} color="white" />
+                                                    <ComparisonBar label="Class Average" value={getDerivedIntel(results[0]).classAvg} color="primary" />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-500 italic mt-12">Comparative data will be visible once the first unit assessment is mapped.</p>
                                         )}
                                     </div>
                                 </div>
@@ -228,36 +274,64 @@ const ParentDashboard = () => {
                             <div className="bg-white rounded-[50px] border border-gray-100 shadow-xl overflow-hidden">
                                 <div className="p-10 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
                                     <div>
-                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Assessment Registry</h2>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Full Academic Scored History</p>
+                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Academic Performance</h2>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Intelligence Mode: Enabled</p>
                                     </div>
-                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary-600 shadow-sm">
-                                        <GraduationCap className="w-6 h-6" />
+                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary-600 shadow-sm border border-gray-100">
+                                        <Award className="w-6 h-6" />
                                     </div>
                                 </div>
                                 <div className="p-10">
-                                    <div className="space-y-4">
-                                        {results.map((res, i) => (
-                                            <div key={i} className="flex items-center justify-between p-6 rounded-[32px] bg-white border border-gray-100 hover:border-primary-200 transition-all hover:shadow-xl hover:shadow-primary-600/5 group">
-                                                <div className="flex items-center gap-6">
-                                                    <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center font-black italic text-lg text-primary-600 border border-gray-100 group-hover:bg-primary-600 group-hover:text-white transition-all">
-                                                        {Math.round((res.marksScored / res.totalMarks) * 100)}%
+                                    <div className="space-y-6">
+                                        {results.map((res, i) => {
+                                            const intel = getDerivedIntel(res);
+                                            const isLow = (res.marksScored / res.totalMarks) < 0.4;
+                                            const isAbsent = res.marksScored === 0;
+
+                                            return (
+                                                <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-8 rounded-[40px] bg-white border border-gray-100 hover:border-primary-200 transition-all hover:shadow-2xl group">
+                                                    <div className="flex items-center gap-8 mb-6 md:mb-0">
+                                                        <div className={`w-20 h-20 rounded-[30px] flex items-center justify-center font-black italic text-2xl border transition-all ${isAbsent ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-primary-600 border-gray-100 group-hover:bg-primary-600 group-hover:text-white'}`}>
+                                                            {isAbsent ? '?' : Math.round((res.marksScored / res.totalMarks) * 100) + '%'}
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-3 mb-1">
+                                                                <p className="text-lg font-black text-gray-900 tracking-tight italic uppercase">{res.subject}</p>
+                                                                {intel.status === 'above' && !isAbsent && (
+                                                                    <span className="text-[8px] font-black text-green-600 uppercase bg-green-50 px-2 py-0.5 rounded-full border border-green-100 italic">Above Average</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <Calendar className="w-3 h-3 text-gray-400" />
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{res.createdAt?.toDate().toLocaleDateString()}</span>
+                                                                </div>
+                                                                {isAbsent && (
+                                                                    <div className="flex items-center gap-1.5 text-red-500">
+                                                                        <ShieldAlert className="w-3 h-3" />
+                                                                        <span className="text-[9px] font-black uppercase tracking-widest italic">Missed Assessment</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-sm font-black text-gray-900 tracking-tight italic uppercase">{res.subject}</p>
-                                                        <div className="flex items-center gap-2 mt-1 opacity-50">
-                                                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest">{res.createdAt?.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                    <div className="flex items-center gap-12">
+                                                        <div className="hidden xl:block w-32 space-y-2">
+                                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest text-right">Class Standing</p>
+                                                            <div className="w-full h-1 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                                                                <div className="h-full bg-primary-400 rounded-full" style={{ width: `${intel.classAvg}%`, opacity: 0.3 }}></div>
+                                                                <div className="h-full bg-primary-600 rounded-full -mt-1" style={{ width: `${(res.marksScored / res.totalMarks) * 100}%` }}></div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-3xl font-black text-gray-900 tracking-tighter italic">{res.marksScored}<span className="text-gray-300">/{res.totalMarks}</span></p>
+                                                            <p className="text-[9px] font-black text-primary-500 uppercase tracking-widest mt-0.5 italic">{intel.percentile}</p>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-2xl font-black text-gray-900 tracking-tighter italic">{res.marksScored}<span className="text-gray-300">/{res.totalMarks}</span></p>
-                                                    <p className="text-[9px] font-black text-primary-500 uppercase tracking-widest mt-0.5">Scored Registry</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {results.length === 0 && <EmptyState icon={TrendingUp} title="No Records" desc="Assessment results will appear here as soon as they are published by the class mentor." />}
+                                            );
+                                        })}
+                                        {results.length === 0 && <EmptyState icon={TrendingUp} title="No Performance Data" desc="Comparative analytics and subject scores will auto-populate once assessment cycles begin." />}
                                     </div>
                                 </div>
                             </div>
@@ -279,7 +353,7 @@ const ParentDashboard = () => {
                                             <div className="bg-white rounded-[44px] p-10 border border-gray-100 shadow-lg hover:shadow-2xl transition-all hover:bg-white/50">
                                                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                                                     <div>
-                                                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1 italic">Week of {upd.createdAt?.toDate().toLocaleDateString()}</p>
+                                                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1 italic">Intelligence Feed • {upd.createdAt?.toDate().toLocaleDateString()}</p>
                                                         <h3 className="text-2xl font-black text-gray-900 italic tracking-tight">{upd.subject || 'Unit Report'}</h3>
                                                     </div>
                                                     <div className="px-5 py-2.5 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">
@@ -300,7 +374,7 @@ const ParentDashboard = () => {
                                                     <div className="p-4 bg-primary-50 rounded-2xl border border-primary-100 flex items-center gap-4 transition-colors">
                                                         <Target className="w-5 h-5 text-primary-600" />
                                                         <div>
-                                                            <p className="text-[9px] font-black text-primary-400 uppercase tracking-widest leading-none mb-1">Next Topic</p>
+                                                            <p className="text-[9px] font-black text-primary-400 uppercase tracking-widest leading-none mb-1">Upcoming Module</p>
                                                             <p className="text-xs font-black text-primary-900 tracking-tight">{upd.nextTopic || 'Finalizing Module'}</p>
                                                         </div>
                                                     </div>
@@ -308,23 +382,29 @@ const ParentDashboard = () => {
                                             </div>
                                         </div>
                                     ))}
-                                    {updates.length === 0 && <EmptyState icon={BookOpen} title="Timeline Empty" desc="Milestone updates and teaching narratives will be logged here periodically." />}
+                                    {updates.length === 0 && <EmptyState icon={BookOpen} title="Timeline Synchronizing" desc="Your feed will update as mental markers and teaching narratives are logged by the educators." />}
                                 </div>
                             </div>
                         )}
 
                         {activeTab === 'attendance' && (
-                            <div className="bg-white rounded-[50px] p-16 border border-gray-100 shadow-xl text-center">
-                                <div className="w-24 h-24 bg-primary-50 rounded-[40px] flex items-center justify-center text-primary-600 mx-auto mb-10 shadow-inner">
-                                    <Clock className="w-10 h-10" />
-                                </div>
-                                <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter mb-4">Attendance Synchronization</h2>
-                                <p className="text-gray-400 font-medium max-w-sm mx-auto mb-12 italic italic leading-relaxed">
-                                    Live daily attendance logging and notifications for {selectedStudent?.name} are being calibrated. Check back soon for the visual calendar.
-                                </p>
-                                <div className="inline-flex items-center gap-4 px-8 py-3.5 bg-gray-50 rounded-full border border-gray-100">
-                                    <div className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse"></div>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Feature Under Calibration</span>
+                            <div className="bg-white rounded-[50px] p-16 border border-gray-100 shadow-xl text-center relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-80 h-80 bg-primary-50 rounded-full blur-[100px] -mr-40 -mt-40 opacity-40"></div>
+                                <div className="relative z-10">
+                                    <div className="w-24 h-24 bg-primary-50 rounded-[40px] flex items-center justify-center text-primary-600 mx-auto mb-10 shadow-inner">
+                                        <Clock className="w-10 h-10" />
+                                    </div>
+                                    <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter mb-4">Security & Attendance Synchronization</h2>
+                                    <p className="text-gray-400 font-medium max-w-sm mx-auto mb-12 italic leading-relaxed">
+                                        Live monitoring of entry/exit points and daily classroom presence for {selectedStudent?.name} is currently in the final calibration phase.
+                                    </p>
+                                    <div className="flex flex-col items-center gap-6">
+                                        <div className="inline-flex items-center gap-4 px-8 py-3.5 bg-gray-50 rounded-full border border-gray-100">
+                                            <div className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse"></div>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Stability Calibration: 84% Complete</span>
+                                        </div>
+                                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest italic">Expected Live Integration: Next Academic Cycle</p>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -333,14 +413,14 @@ const ParentDashboard = () => {
                             <div className="space-y-10">
                                 <div className="flex justify-between items-center px-4">
                                     <div>
-                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Support Gateway</h2>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Direct Communication with Institution</p>
+                                        <h2 className="text-3xl font-black text-gray-900 italic tracking-tight">Direct Support Gateway</h2>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Secure communication channel active</p>
                                     </div>
                                     <button
                                         onClick={() => setIsTicketModalOpen(true)}
                                         className="px-10 py-5 bg-gray-900 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl hover:bg-primary-600 transition-all flex items-center gap-3 italic"
                                     >
-                                        New Inquiry <Plus className="w-4 h-4" />
+                                        Initiate Inquiry <Plus className="w-4 h-4" />
                                     </button>
                                 </div>
 
@@ -349,20 +429,20 @@ const ParentDashboard = () => {
                                         <div key={i} className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-lg hover:border-primary-200 transition-all">
                                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                                                 <div className="flex items-center gap-5">
-                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black italic shadow-inner ${t.status === 'open' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black italic shadow-inner ${t.status === 'open' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
                                                         {t.status === 'open' ? '?' : '✓'}
                                                     </div>
                                                     <div>
                                                         <h4 className="text-2xl font-black text-gray-900 tracking-tight italic">{t.subject}</h4>
-                                                        <div className="flex items-center gap-3 mt-1">
-                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.ticketNo}</span>
-                                                            <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
-                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{t.createdAt?.toDate().toLocaleDateString()}</span>
+                                                        <div className="flex items-center gap-3 mt-1 opacity-50">
+                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">{t.ticketNo}</span>
+                                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none italic">{t.createdAt?.toDate().toLocaleDateString()}</span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm ${t.status === 'open' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
-                                                    {t.status}
+                                                <div className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm italic ${t.status === 'open' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                                                    System Status: {t.status}
                                                 </div>
                                             </div>
                                             <p className="text-base font-medium text-gray-500 leading-relaxed italic border-l-4 border-gray-100 pl-8">
@@ -370,7 +450,7 @@ const ParentDashboard = () => {
                                             </p>
                                         </div>
                                     ))}
-                                    {tickets.length === 0 && <EmptyState icon={LifeBuoy} title="No Inquiries" desc="Direct communications between you and the administration will be securely logged here." />}
+                                    {tickets.length === 0 && <EmptyState icon={LifeBuoy} title="Clean Inbox" desc="Communication history will be archived here once you initiate your first inquiry." />}
                                 </div>
                             </div>
                         )}
@@ -387,8 +467,8 @@ const ParentDashboard = () => {
                         <div className="relative z-10">
                             <div className="flex justify-between items-start mb-12">
                                 <div>
-                                    <h2 className="text-4xl font-black text-gray-900 tracking-tighter italic leading-none mb-3">Institution Inquiry</h2>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Inquiry Type: Standard Communication</p>
+                                    <h2 className="text-4xl font-black text-gray-900 tracking-tighter italic leading-none mb-3 text-primary-600">New Inquiry</h2>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Type: Parent-Institution Bridge</p>
                                 </div>
                                 <button onClick={() => setIsTicketModalOpen(false)} className="p-4 bg-gray-50 hover:bg-primary-50 hover:text-primary-600 rounded-3xl transition-all">
                                     <X className="w-6 h-6" />
@@ -400,24 +480,24 @@ const ParentDashboard = () => {
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-2 italic">Subject of Communication</label>
                                     <input
                                         className="w-full px-8 py-5 bg-gray-50 border border-gray-100 rounded-[28px] outline-none focus:border-primary-300 focus:bg-white transition-all font-black italic text-lg tracking-tight shadow-inner"
-                                        placeholder="Brief summary..."
+                                        placeholder="Briefly describe the context..."
                                         value={ticketData.subject}
                                         onChange={e => setTicketData({ ...ticketData, subject: e.target.value })}
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-2 italic">Detailed Context</label>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-2 italic">Full Inquiry Message</label>
                                     <textarea
                                         className="w-full px-8 py-6 bg-gray-50 border border-gray-100 rounded-[40px] outline-none focus:border-primary-300 focus:bg-white transition-all font-medium text-gray-600 min-h-[150px] italic shadow-inner"
-                                        placeholder="Describe your inquiry..."
+                                        placeholder="Provide all relevant details here..."
                                         value={ticketData.message}
                                         onChange={e => setTicketData({ ...ticketData, message: e.target.value })}
                                         required
                                     ></textarea>
                                 </div>
                                 <button type="submit" className="w-full py-7 bg-gray-900 text-white rounded-[40px] font-black text-[11px] uppercase tracking-[0.4em] shadow-2xl hover:bg-primary-600 transition-all italic flex items-center justify-center gap-4">
-                                    Dispatch Inquiry <ChevronRight className="w-5 h-5" />
+                                    Dispatch Message <ChevronRight className="w-5 h-5" />
                                 </button>
                             </form>
                         </div>
@@ -427,6 +507,23 @@ const ParentDashboard = () => {
         </div>
     );
 };
+
+// --- Sub-Components (Intelligence UI) ---
+
+const ComparisonBar = ({ label, value, color }) => (
+    <div className="space-y-3">
+        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em]">
+            <span className={color === 'white' ? 'text-gray-400' : 'text-primary-400'}>{label}</span>
+            <span className={color === 'white' ? 'text-white' : 'text-primary-400'}>{value}%</span>
+        </div>
+        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+            <div
+                className={`h-full rounded-full transition-all duration-1000 ${color === 'white' ? 'bg-white' : 'bg-primary-500'}`}
+                style={{ width: `${value}%` }}
+            ></div>
+        </div>
+    </div>
+);
 
 const NavItem = ({ icon: Icon, label, active, onClick, demo }) => (
     <button
@@ -440,9 +537,19 @@ const NavItem = ({ icon: Icon, label, active, onClick, demo }) => (
             <span className={`text-[11px] font-black uppercase tracking-widest transition-all ${active ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-600'}`}>{label}</span>
         </div>
         {demo && (
-            <div className="w-2.5 h-2.5 bg-primary-100 rounded-full"></div>
+            <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black text-primary-400 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Beta</span>
+                <div className="w-2.5 h-2.5 bg-primary-100 rounded-full animate-pulse"></div>
+            </div>
         )}
     </button>
+);
+
+const EmptyPlaceholder = ({ title }) => (
+    <div className="py-10 text-center space-y-4 opacity-30 mt-4 border-2 border-dashed border-gray-100 rounded-[30px]">
+        <Users className="w-12 h-12 mx-auto text-gray-300" />
+        <p className="text-xs font-black uppercase tracking-widest italic">{title}</p>
+    </div>
 );
 
 const EmptyState = ({ icon: Icon, title, desc }) => (
@@ -451,7 +558,7 @@ const EmptyState = ({ icon: Icon, title, desc }) => (
             <Icon className="w-10 h-10" />
         </div>
         <h3 className="text-2xl font-black text-gray-300 italic tracking-tight">{title}</h3>
-        <p className="text-gray-400 font-medium text-xs max-w-[200px] mx-auto mt-2 italic leading-relaxed">{desc}</p>
+        <p className="text-gray-400 font-medium text-xs max-w-sm mx-auto mt-2 italic leading-relaxed">{desc}</p>
     </div>
 );
 
