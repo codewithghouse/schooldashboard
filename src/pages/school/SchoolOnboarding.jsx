@@ -29,7 +29,7 @@ const SchoolOnboarding = () => {
         }
     };
 
-    if (userData?.role === 'school_admin' && userData?.schoolId) {
+    if (userData?.role === 'admin' && userData?.schoolId) {
         // Already has school
         navigate('/school/dashboard');
         return null;

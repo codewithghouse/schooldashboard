@@ -1,80 +1,92 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
-    function isAuthenticated() {
+
+    function isSignedIn() {
       return request.auth != null;
     }
-    
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // --- Users Collection ---
+    function role() {
+      return userDoc().data.role;
+    }
+
+    function schoolId() {
+      return userDoc().data.schoolId;
+    }
+
+    function isAdmin() {
+      return role() == "admin";
+    }
+
+    function isTeacher() {
+      return role() == "teacher";
+    }
+
+    function isParent() {
+      return role() == "parent";
+    }
+
+    /* USERS */
     match /users/{uid} {
-      allow read: if request.auth.uid == uid;
-      allow create: if isAuthenticated(); // Allow during /accept-invite
-      allow update: if request.auth.uid == uid;
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create: if isSignedIn();
+      allow update: if false;
     }
 
-    // --- Schools Collection ---
+    /* SCHOOLS */
     match /schools/{schoolId} {
-      allow read: if isAuthenticated() && getUserData().schoolId == schoolId;
-      allow write: if isAuthenticated() && getUserData().role == 'school_admin';
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isAdmin();
     }
 
-    // --- Classes Collection ---
+    /* CLASSES */
     match /classes/{classId} {
-      // Admin: All in school. Teacher: only assigned.
-      allow read: if isAuthenticated() && (
-        getUserData().role == 'school_admin' || 
-        (getUserData().role == 'teacher' && resource.data.classTeacherId == request.auth.uid)
+      // Create/Delete: Admin only
+      // Update: Admin (general) OR Teacher (linking their own UID during onboarding)
+      allow create, delete: if isSignedIn() && isAdmin() && request.resource.data.schoolId == schoolId();
+      
+      allow update: if isSignedIn() && (
+        (isAdmin() && request.resource.data.schoolId == schoolId()) ||
+        (isTeacher() && request.resource.data.classTeacherId == request.auth.uid)
       );
-      allow write: if isAuthenticated() && (
-        getUserData().role == 'school_admin' ||
-        (getUserData().role == 'teacher' && resource.data.classTeacherId == request.auth.uid)
-      );
+
+      allow read: if isSignedIn() && (resource == null || resource.data.schoolId == schoolId());
     }
 
-    // --- Students Collection ---
+    /* STUDENTS */
     match /students/{studentId} {
-      // Admin: All in school. Teacher: only in their classes. Parent: only their children.
-      allow read: if isAuthenticated() && (
-        getUserData().role == 'school_admin' ||
-        (getUserData().role == 'teacher' && get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.classTeacherId == request.auth.uid) ||
-        (getUserData().role == 'parent' && resource.data.parentEmail == request.auth.token.email)
+      allow create, delete: if isSignedIn() && isAdmin() && request.resource.data.schoolId == schoolId();
+      
+      allow update: if isSignedIn() && (
+        (isAdmin() && request.resource.data.schoolId == schoolId()) ||
+        (isParent() && request.resource.data.parentUid == request.auth.uid)
       );
-      allow write: if isAuthenticated() && (
-        getUserData().role == 'school_admin' ||
-        (getUserData().role == 'teacher' && get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.classTeacherId == request.auth.uid)
+
+      allow read: if isSignedIn() && (
+        (isAdmin() && (resource == null || resource.data.schoolId == schoolId())) ||
+        (isTeacher() && (resource == null || resource.data.schoolId == schoolId())) ||
+        (isParent() && (resource == null || resource.data.parentEmail == request.auth.token.email))
       );
-    }
-    
-    // --- Teachers Collection (Convenience profile) ---
-    match /teachers/{uid} {
-      allow read: if isAuthenticated() && (getUserData().schoolId == resource.data.schoolId);
-      allow write: if isAuthenticated() && (request.auth.uid == uid || getUserData().role == 'school_admin');
     }
 
-    // --- Syllabus, Updates, Announcements ---
-    match /{path=**}/syllabus/{id} {
-        allow read: if isAuthenticated();
-        allow write: if isAuthenticated() && (getUserData().role == 'school_admin' || getUserData().role == 'teacher');
+    /* SYLLABUS, UPDATES, ANNOUNCEMENTS */
+    match /syllabus/{id} {
+      allow read: if isSignedIn() && (resource == null || resource.data.schoolId == schoolId());
+      allow write: if isSignedIn() && (isAdmin() || isTeacher()) && request.resource.data.schoolId == schoolId();
     }
-    
+
     match /weeklyUpdates/{id} {
-        allow read: if isAuthenticated();
-        allow write: if isAuthenticated() && (getUserData().role == 'teacher');
+      allow read: if isSignedIn() && (resource == null || resource.data.schoolId == schoolId());
+      allow write: if isSignedIn() && isTeacher() && request.resource.data.schoolId == schoolId();
     }
-
+    
     match /announcements/{id} {
-        allow read: if isAuthenticated();
-        allow write: if isAuthenticated() && (getUserData().role != 'parent');
-    }
-
-    match /aiContent/{id} {
-        allow read, write: if isAuthenticated() && getUserData().role == 'teacher';
+      allow read: if isSignedIn() && (resource == null || resource.data.schoolId == schoolId());
+      allow write: if isSignedIn() && (isAdmin() || isTeacher()) && request.resource.data.schoolId == schoolId();
     }
 
     // Default deny

@@ -101,7 +101,7 @@ const AcceptInvite = () => {
                     setTimeout(() => {
                         if (role === 'teacher') navigate('/teacher/dashboard');
                         else if (role === 'parent') navigate('/parent/dashboard');
-                        else if (role === 'school_admin') navigate('/school/dashboard');
+                        else if (role === 'admin') navigate('/school/dashboard');
                         else navigate('/');
                     }, 2000);
 

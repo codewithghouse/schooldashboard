@@ -57,7 +57,7 @@ const DashboardLayout = ({ role: requiredRole = 'school' }) => {
     };
 
     const navItemsByRole = {
-        school_admin: [
+        admin: [
             { icon: LayoutDashboard, label: 'Dashboard', to: '/school/dashboard' },
             { icon: BookOpen, label: 'Classes', to: '/school/classes' },
             { icon: Users, label: 'Teachers', to: '/school/teachers' },
@@ -102,7 +102,7 @@ const DashboardLayout = ({ role: requiredRole = 'school' }) => {
                     {/* Nav Items */}
                     <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-2">
-                            {requiredRole === 'school_admin' ? 'School Management' : `${requiredRole} Portal`}
+                            {requiredRole === 'admin' ? 'School Management' : `${requiredRole} Portal`}
                         </div>
                         {navItems.map((item) => (
                             <SidebarItem

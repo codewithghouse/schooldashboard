@@ -24,20 +24,27 @@ export const getSchool = async (schoolId) => {
 
 export const createSchool = async (schoolData, adminUid) => {
     try {
+        // 1. Create/Ensure User Doc exists with 'admin' role FIRST
+        // This satisfies the isAdmin() check in Firestore rules for creating the school doc
+        const userRef = doc(db, 'users', adminUid);
+        await setDoc(userRef, {
+            uid: adminUid,
+            email: auth.currentUser?.email || '',
+            role: 'admin',
+            createdAt: serverTimestamp()
+        }, { merge: true });
+
+        // 2. Create School Doc
         const schoolRef = await addDoc(collection(db, 'schools'), {
             ...schoolData,
             createdAt: serverTimestamp(),
             createdBy: adminUid
         });
 
-        const userRef = doc(db, 'users', adminUid);
-        await setDoc(userRef, {
-            uid: adminUid,
-            email: auth.currentUser?.email || '',
-            role: 'school_admin',
-            schoolId: schoolRef.id,
-            createdAt: serverTimestamp()
-        }, { merge: true });
+        // 3. Link School to User
+        await updateDoc(userRef, {
+            schoolId: schoolRef.id
+        });
 
         return schoolRef.id;
     } catch (error) {

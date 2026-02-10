@@ -110,7 +110,7 @@ const LandingPage = () => {
                             Join the forward-thinking institutions that are changing how they track academic success.
                         </p>
                         <button
-                            onClick={() => navigate('/login?role=school_admin')}
+                            onClick={() => navigate('/login?role=admin')}
                             className="relative z-10 px-8 py-4 rounded-full bg-white text-gray-900 font-bold text-lg hover:bg-gray-100 transition-all shadow-xl"
                         >
                             Get Started Now

@@ -70,7 +70,7 @@ const LoginPage = () => {
                         {selectedRole && (
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-bold uppercase tracking-wider mb-4 border border-primary-100">
                                 <UserCircle2 className="w-3.5 h-3.5" />
-                                {selectedRole.replace('_', ' ')} Portal
+                                {selectedRole === 'admin' ? 'School Administrator' : selectedRole.replace('_', ' ')} Portal
                             </div>
                         )}
 

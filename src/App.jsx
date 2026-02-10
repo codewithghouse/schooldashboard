@@ -42,7 +42,7 @@ const AppRoutes = () => {
     if (user) {
       if (role) {
         if (location.pathname === '/login' || location.pathname === '/') {
-          if (role === 'school_admin') {
+          if (role === 'admin') {
             if (!userData?.schoolId) navigate('/school-onboarding');
             else navigate('/school/dashboard');
           }
@@ -82,7 +82,7 @@ const AppRoutes = () => {
       <Route path="/accept-invite" element={<AcceptInvite />} />
 
       {/* School Admin Routes */}
-      <Route path="/school" element={<DashboardLayout role="school_admin" />}>
+      <Route path="/school" element={<DashboardLayout role="admin" />}>
         <Route index element={<Navigate to="/school/dashboard" replace />} />
         <Route path="dashboard" element={<SchoolDashboard />} />
         <Route path="classes" element={<ClassesModule />} />
