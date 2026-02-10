@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, signOut as firebaseSignOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         setPersistence(auth, browserLocalPersistence);
 
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
             if (!firebaseUser) {
                 setUser(null);
                 setUserData(null);
@@ -27,32 +27,32 @@ export const AuthProvider = ({ children }) => {
                 return;
             }
 
+            setUser(firebaseUser);
             setLoading(true);
-            try {
-                const uid = firebaseUser.uid;
-                const userRef = doc(db, "users", uid);
-                const userSnap = await getDoc(userRef);
 
-                if (userSnap.exists()) {
-                    const data = userSnap.data();
-                    setUser(firebaseUser);
+            // 🚀 REAL-TIME USER DATA SYNC
+            const userRef = doc(db, "users", firebaseUser.uid);
+            const unsubProfile = onSnapshot(userRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
                     setUserData(data);
                     setRole(data.role);
                     setSchoolId(data.schoolId);
+                    console.log("👤 Real-time Auth Synced:", data.role, data.schoolId);
                 } else {
-                    // This case happens during the onboarding flow 
-                    // before /finalize-invite is called.
-                    setUser(firebaseUser);
                     setUserData(null);
                     setRole(null);
                     setSchoolId(null);
                 }
-
-            } catch (error) {
-                console.error("🔥 Auth Sync Critical Error:", error.code, error.message);
-            } finally {
                 setLoading(false);
-            }
+            }, (error) => {
+                console.error("🔥 Profile Sync Error:", error);
+                setLoading(false);
+            });
+
+            return () => {
+                unsubProfile();
+            };
         });
 
         return unsubscribe;

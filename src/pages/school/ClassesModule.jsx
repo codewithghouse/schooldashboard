@@ -21,12 +21,26 @@ const ClassesModule = () => {
     }, [schoolId]);
 
     const loadData = async () => {
-        const [classesData, teachersData] = await Promise.all([
-            getClasses(schoolId),
-            getTeachers(schoolId)
-        ]);
-        setClasses(classesData);
-        setTeachers(teachersData);
+        if (!schoolId) {
+            console.warn("⚠️ loadData called without schoolId");
+            return;
+        }
+        setLoading(true);
+        try {
+            console.log("📂 Fetching data for schoolId:", schoolId);
+            const [classesData, teachersData] = await Promise.all([
+                getClasses(schoolId),
+                getTeachers(schoolId)
+            ]);
+            setClasses(classesData);
+            setTeachers(teachersData);
+            console.log("✅ Data Loaded:", classesData.length, "classes found.");
+        } catch (error) {
+            console.error("❌ Data Load Error:", error);
+            alert("Failed to load classes. Please ensure you have sufficient permissions.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleQuickSetup = async () => {
