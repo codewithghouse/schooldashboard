@@ -22,7 +22,10 @@ export const getSchool = async (schoolId) => {
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
 };
 
-export const createSchool = async (schoolData, adminUid) => {
+export const createSchool = async (schoolData) => {
+    if (!auth.currentUser) throw new Error("User not authenticated.");
+    const adminUid = auth.currentUser.uid;
+
     try {
         // 0. Ensure Admin Role is set (Required by rules to create school)
         const userRef = doc(db, 'users', adminUid);

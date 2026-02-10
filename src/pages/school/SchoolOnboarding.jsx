@@ -19,7 +19,7 @@ const SchoolOnboarding = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            await createSchool(formData, user.uid);
+            await createSchool(formData);
             // Ideally force a refresh of user context, but navigation will likely trigger re-checks or we rely on Firestore listener if we had one.
             // For now, simpler to reload or navigate.
             window.location.href = '/school/dashboard';

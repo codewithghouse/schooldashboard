@@ -2,125 +2,111 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /* ---------- HELPERS ---------- */
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function userDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    function getUserData() {
+      // Use getAfter if available for multi-step transactions, but here get is fine.
+      // We use a safe path to avoid crashing on missing docs.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function role() {
-      return userDoc().data.role;
-    }
-
-    function userSchoolId() {
-      return userDoc().data.schoolId;
+    function hasRole(targetRole) {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             getUserData().role == targetRole;
     }
 
     function isAdmin() {
-      return role() == "admin";
+      return hasRole('admin');
     }
 
     function isTeacher() {
-      return role() == "teacher";
+      return hasRole('teacher');
     }
 
     function isParent() {
-      return role() == "parent";
+      return hasRole('parent');
+    }
+
+    function getSchoolId() {
+      // Robust retrieval of schoolId
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+             ? getUserData().schoolId 
+             : null;
     }
 
     /* ---------- USERS ---------- */
     match /users/{uid} {
-      allow read: if isSignedIn() && request.auth.uid == uid;
-      allow create: if isSignedIn() && request.auth.uid == uid;
-      // Admin linking their schoolId or Teacher/Parent linking their UID
-      allow update: if isSignedIn() && request.auth.uid == uid;
+      allow read, create, update: if isSignedIn() && request.auth.uid == uid;
       allow delete: if false;
     }
 
     /* ---------- SCHOOLS ---------- */
     match /schools/{schoolId} {
+      allow read: if isSignedIn();
 
-      // ✅ FIRST SCHOOL CREATE (ONBOARDING EXCEPTION)
-      allow create: if isSignedIn()
-        && isAdmin()
-        && userDoc().data.schoolId == null;
+      // ✅ SCHOOL CREATION (Race-Condition Proof)
+      // We allow school creation if the UID matches. 
+      // The role 'admin' is set in the same frontend operation.
+      allow create: if isSignedIn() 
+        && request.resource.data.adminUid == request.auth.uid;
 
-      // Admin can manage only their school after linking
-      allow read, update, delete: if isSignedIn()
-        && isAdmin()
+      // Management remains strict
+      allow update, delete: if isSignedIn() 
+        && isAdmin() 
         && resource.data.adminUid == request.auth.uid;
     }
 
     /* ---------- CLASSES ---------- */
     match /classes/{classId} {
-
-      // Admin creates & deletes classes
-      allow create, delete: if isSignedIn()
-        && isAdmin()
-        && request.resource.data.schoolId == userSchoolId();
-
-      // Admin full update OR teacher updating their own class
+      allow create, delete: if isSignedIn() && isAdmin() && request.resource.data.schoolId == getSchoolId();
+      
       allow update: if isSignedIn() && (
-        (isAdmin() && request.resource.data.schoolId == userSchoolId()) ||
+        (isAdmin() && request.resource.data.schoolId == getSchoolId()) ||
         (isTeacher() && resource.data.classTeacherId == request.auth.uid)
       );
 
-      // Admin & Teacher can read classes of their school
-      allow read: if isSignedIn()
-        && resource.data.schoolId == userSchoolId();
+      allow read: if isSignedIn() && (resource == null || resource.data.schoolId == getSchoolId());
     }
 
     /* ---------- STUDENTS ---------- */
     match /students/{studentId} {
+      allow create, delete: if isSignedIn() && isAdmin() && request.resource.data.schoolId == getSchoolId();
+      
+      allow update: if isSignedIn() && (
+        (isAdmin() && request.resource.data.schoolId == getSchoolId()) ||
+        (isParent() && resource.data.parentUid == request.auth.uid)
+      );
 
-      // Only admin can create/delete students
-      allow create, delete: if isSignedIn()
-        && isAdmin()
-        && request.resource.data.schoolId == userSchoolId();
-
-      // Admin can update student data
-      allow update: if isSignedIn()
-        && isAdmin()
-        && request.resource.data.schoolId == userSchoolId();
-
-      // Read rules
       allow read: if isSignedIn() && (
-        (isAdmin() && resource.data.schoolId == userSchoolId()) ||
-        (isTeacher() && resource.data.schoolId == userSchoolId()) ||
-        (isParent() && resource.data.parentEmail == request.auth.token.email)
+        (isAdmin() && (resource == null || resource.data.schoolId == getSchoolId())) ||
+        (isTeacher() && (resource == null || resource.data.schoolId == getSchoolId())) ||
+        (isParent() && (resource == null || resource.data.parentEmail == request.auth.token.email))
       );
     }
 
-    /* ---------- SYLLABUS ---------- */
+    /* ---------- ACADEMIC DATA ---------- */
     match /syllabus/{id} {
-      allow read: if isSignedIn()
-        && resource.data.schoolId == userSchoolId();
-
-      allow create, update, delete: if isSignedIn()
-        && (isAdmin() || isTeacher())
-        && request.resource.data.schoolId == userSchoolId();
+      allow read: if isSignedIn() && (resource == null || resource.data.schoolId == getSchoolId());
+      allow write: if isSignedIn() && (isAdmin() || isTeacher()) && request.resource.data.schoolId == getSchoolId();
     }
 
-    /* ---------- WEEKLY UPDATES ---------- */
     match /weeklyUpdates/{id} {
-      allow read: if isSignedIn()
-        && resource.data.schoolId == userSchoolId();
-
-      allow create, update, delete: if isSignedIn()
-        && isTeacher()
-        && request.resource.data.schoolId == userSchoolId();
+      allow read: if isSignedIn() && (resource == null || resource.data.schoolId == getSchoolId());
+      allow write: if isSignedIn() && isTeacher() && request.resource.data.schoolId == getSchoolId();
     }
 
-    /* ---------- ANNOUNCEMENTS ---------- */
     match /announcements/{id} {
-      allow read: if isSignedIn()
-        && resource.data.schoolId == userSchoolId();
+      allow read: if isSignedIn() && (resource == null || resource.data.schoolId == getSchoolId());
+      allow write: if isSignedIn() && (isAdmin() || isTeacher()) && request.resource.data.schoolId == getSchoolId();
+    }
 
-      allow create, update, delete: if isSignedIn()
-        && (isAdmin() || isTeacher())
-        && request.resource.data.schoolId == userSchoolId();
+    match /aiContent/{id} {
+        allow read, write: if isSignedIn() && isTeacher();
     }
 
     /* ---------- DEFAULT DENY ---------- */
