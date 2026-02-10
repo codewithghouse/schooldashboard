@@ -58,9 +58,27 @@ export const AuthProvider = ({ children }) => {
         return unsubscribe;
     }, []);
 
+    const refreshUserData = async () => {
+        if (!auth.currentUser) return;
+        setLoading(true);
+        try {
+            const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
+            if (userSnap.exists()) {
+                const data = userSnap.data();
+                setUserData(data);
+                setRole(data.role);
+                setSchoolId(data.schoolId);
+            }
+        } catch (error) {
+            console.error("Manual Refresh Error:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const logout = () => firebaseSignOut(auth);
 
-    const value = { user, userData, role, schoolId, loading, logout };
+    const value = { user, userData, role, schoolId, loading, logout, refreshUserData };
 
     return (
         <AuthContext.Provider value={value}>

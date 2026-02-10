@@ -38,7 +38,7 @@ const TeacherClasses = () => {
             await addWeeklyUpdate({
                 schoolId,
                 classId: selectedClassId,
-                teacherId: userData.teacherId,
+                teacherId: userData.uid,
                 subject: currentSubject,
                 ...updateFormData
             });

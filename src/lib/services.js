@@ -13,9 +13,11 @@ import {
     deleteDoc
 } from 'firebase/firestore';
 import { auth } from './firebase';
+import { sendSignInLinkToEmail } from "firebase/auth";
 
 // --- School Services ---
 export const getSchool = async (schoolId) => {
+    if (!schoolId) return null;
     const docSnap = await getDoc(doc(db, 'schools', schoolId));
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
 };
@@ -60,148 +62,60 @@ export const getClasses = async (schoolId) => {
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-// --- Email Service (Production Only) ---
-// Using Render Backend exclusively for emails and Atomic Invite Creation
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://school-backend-11.onrender.com';
-
-const triggerProductionEmail = async (type, payload) => {
-    try {
-        console.log(`📧 Dispatching ${type} invite via Backend + Firebase...`);
-        // 1. Create Invite Doc
-        const response = await fetch(`${BACKEND_URL}/create-invite`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                role: type === 'parent' ? 'parent' : type,
-                schoolId: payload.schoolId,
-                studentId: payload.studentId,
-                email: payload.email.toLowerCase().trim(),
-                ...payload
-            })
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || "Backend failed to create invite");
-        }
-
-        const { inviteId } = await response.json();
-
-        // 2. Transmit Link via Firebase Auth
-        const actionCodeSettings = {
-            url: `${window.location.origin}/accept-invite?id=${inviteId}`,
-            handleCodeInApp: true,
-        };
-
-        await sendSignInLinkToEmail(auth, payload.email.toLowerCase().trim(), actionCodeSettings);
-
-        // Note: For students, we might not want to overwrite teacher's localStorage 
-        // if the admin is the one sending. But usually the one receiving the email 
-        // will have it in the link or they can just re-enter it.
-    } catch (error) {
-        console.error(`❌ Invite Error:`, error.message);
-    }
-};
-
-export const finalizeOnboarding = async (uid, email, inviteId) => {
-    const response = await fetch(`${BACKEND_URL}/finalize-invite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, email, inviteId })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Onboarding finalization failed");
-    }
-
-    return await response.json();
-};
-
-// --- Teacher Services (Production Flow) ---
-import { sendSignInLinkToEmail } from "firebase/auth";
-
-// --- 85: Teacher Services (Production Flow) ---
+// --- Teacher Services (Pure Frontend Flow) ---
 export const inviteTeacher = async (schoolId, teacherData, assignedClassIds = []) => {
-    // 1. Create Invite Document in Backend
-    const response = await fetch(`${BACKEND_URL}/create-invite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            role: 'teacher',
-            email: teacherData.email.toLowerCase().trim(),
-            name: teacherData.name,
-            schoolId,
-            subjects: teacherData.subjects || [],
-            classIds: assignedClassIds
-        })
-    });
+    const email = teacherData.email.toLowerCase().trim();
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create invite record");
+    // Check if email already exists with a different role
+    const q = query(collection(db, 'users'), where("email", "==", email));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+        throw new Error("This email is already registered with a role. One email = one role.");
     }
 
-    const { inviteId } = await response.json();
+    const params = new URLSearchParams({
+        role: 'teacher',
+        schoolId: schoolId,
+        name: teacherData.name,
+        subjects: JSON.stringify(teacherData.subjects || []),
+        classes: JSON.stringify(assignedClassIds)
+    });
 
-    // 2. Send Firebase Auth Email Link
     const actionCodeSettings = {
-        url: `${window.location.origin}/accept-invite?id=${inviteId}`,
+        url: `${window.location.origin}/accept-invite?${params.toString()}`,
         handleCodeInApp: true,
     };
 
-    await sendSignInLinkToEmail(auth, teacherData.email.toLowerCase().trim(), actionCodeSettings);
+    // 2. Transmit Link via Firebase Auth
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
 
-    // Store email locally for the verification step
-    window.localStorage.setItem('emailForSignIn', teacherData.email.toLowerCase().trim());
+    // 3. Store Invite Data in LocalStorage (as per logic A)
+    localStorage.setItem("inviteEmail", email);
+    localStorage.setItem("inviteRole", "teacher");
+    localStorage.setItem("inviteSchoolId", schoolId);
+    localStorage.setItem("inviteName", teacherData.name);
+    localStorage.setItem("inviteSubjects", JSON.stringify(teacherData.subjects || []));
+    localStorage.setItem("inviteClassIds", JSON.stringify(assignedClassIds));
 
-    console.log("✅ Invitation link sent via Firebase.");
-    return inviteId;
+    console.log("✅ Teacher invitation link sent via Firebase.");
+    return true;
 };
 
 export const getTeachers = async (schoolId) => {
-    // Teachers directory now only shows active teachers (those with a UID/Profile)
-    const q = query(collection(db, 'teachers'), where("schoolId", "==", schoolId));
+    const q = query(collection(db, 'users'), where("schoolId", "==", schoolId), where("role", "==", "teacher"));
     const querySnapshot = await getDocs(q);
-    const activeTeachers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    // Also fetch pending invites to show in the directory
-    const iq = query(collection(db, 'invites'), where("schoolId", "==", schoolId), where("status", "==", "pending"));
-    const inviteSnapshot = await getDocs(iq);
-    const pendingTeachers = inviteSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        status: 'invited'
-    }));
-
-    return [...activeTeachers, ...pendingTeachers];
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), status: 'active' }));
 };
 
-export const deleteTeacher = async (schoolId, identifier) => {
-    console.log(`🗑️ Initiating Safe Delete for: ${identifier}`);
-
+export const deleteTeacher = async (schoolId, teacherUid) => {
     // Unassign classes
-    const classesQuery = query(collection(db, 'classes'), where("classTeacherId", "==", identifier));
+    const classesQuery = query(collection(db, 'classes'), where("classTeacherId", "==", teacherUid));
     const classesSnap = await getDocs(classesQuery);
     const unassignPromises = classesSnap.docs.map(c => updateDoc(doc(db, 'classes', c.id), { classTeacherId: null }));
     await Promise.all(unassignPromises);
 
-    // If identifier is a UID (active teacher)
-    await deleteDoc(doc(db, 'users', identifier)).catch(() => { });
-    await deleteDoc(doc(db, 'teachers', identifier)).catch(() => { });
-
-    // If identifier is an inviteId (pending teacher) or find invite by email
-    const teacherDoc = await getDoc(doc(db, 'teachers', identifier));
-    const email = teacherDoc.exists() ? teacherDoc.data().email : null;
-
-    if (email) {
-        const inviteQuery = query(collection(db, 'invites'), where("email", "==", email));
-        const inviteSnap = await getDocs(inviteQuery);
-        await Promise.all(inviteSnap.docs.map(i => deleteDoc(i.ref)));
-    } else {
-        await deleteDoc(doc(db, 'invites', identifier)).catch(() => { });
-    }
-
+    await deleteDoc(doc(db, 'users', teacherUid)).catch(() => { });
+    // Note: We don't delete auth user here as it's not possible from client SDK
     return { success: true };
 };
 
@@ -210,38 +124,42 @@ export const addStudent = async (schoolId, studentData) => {
     const docRef = await addDoc(collection(db, 'students'), {
         ...studentData,
         schoolId,
-        status: 'active',
         createdAt: serverTimestamp()
     });
 
-    await triggerProductionEmail('parent', {
-        email: studentData.parentEmail,
-        schoolId,
-        studentId: docRef.id,
-        studentName: studentData.name
+    // Invite Parent
+    const email = studentData.parentEmail.toLowerCase().trim();
+
+    // Check if email already exists with a different role
+    const q = query(collection(db, 'users'), where("email", "==", email));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+        console.warn("Parent email already has a role. Skipping invite.");
+        return docRef;
+    }
+    const params = new URLSearchParams({
+        role: 'parent',
+        schoolId: schoolId,
+        studentId: docRef.id
     });
+
+    const actionCodeSettings = {
+        url: `${window.location.origin}/accept-invite?${params.toString()}`,
+        handleCodeInApp: true,
+    };
+
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+
+    localStorage.setItem("inviteEmail", email);
+    localStorage.setItem("inviteRole", "parent");
+    localStorage.setItem("inviteSchoolId", schoolId);
+    localStorage.setItem("inviteStudentId", docRef.id);
 
     return docRef;
 };
 
 export const bulkAddStudents = async (schoolId, studentsArray) => {
-    const promises = studentsArray.map(async (student) => {
-        const docRef = await addDoc(collection(db, 'students'), {
-            ...student,
-            schoolId,
-            status: 'active',
-            createdAt: serverTimestamp()
-        });
-
-        await triggerProductionEmail('parent', {
-            email: student.parentEmail,
-            schoolId,
-            studentId: docRef.id,
-            studentName: student.name
-        });
-
-        return docRef;
-    });
+    const promises = studentsArray.map(student => addStudent(schoolId, student));
     return Promise.all(promises);
 };
 
@@ -253,7 +171,14 @@ export const getStudents = async (schoolId, classId = null) => {
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-// --- Other Services (Unchanged structure, ensuring clean export) ---
+// --- Parent Services ---
+export const getMyStudents = async (parentEmail) => {
+    const q = query(collection(db, 'students'), where("parentEmail", "==", parentEmail));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+// --- Other Services ---
 export const uploadSyllabus = async (schoolId, syllabusData) => addDoc(collection(db, 'syllabus'), { ...syllabusData, schoolId, createdAt: serverTimestamp() });
 export const getSyllabus = async (schoolId, classId = null) => {
     const q = classId ? query(collection(db, 'syllabus'), where("schoolId", "==", schoolId), where("classId", "==", classId)) : query(collection(db, 'syllabus'), where("schoolId", "==", schoolId));
@@ -282,9 +207,3 @@ export const getAnnouncements = async (schoolId, classId = null) => {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
-export const getStudentByParentUid = async (parentUid) => {
-    const q = query(collection(db, 'students'), where("parentUid", "==", parentUid));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-
