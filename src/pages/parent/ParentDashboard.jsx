@@ -28,7 +28,14 @@ import {
     User,
     ShieldCheck,
     AlertTriangle,
-    Flag
+    Flag,
+    TrendingUp,
+    Award,
+    Zap,
+    Sparkles,
+    Star,
+    Target,
+    Shield
 } from 'lucide-react';
 
 const DEMO_MODE = true;
@@ -86,7 +93,6 @@ const ParentDashboard = () => {
             ]);
 
             setResults(stdResults);
-            // Only show 'published' updates if not in demo mode, else show all for demo
             setUpdates(stdUpdates.filter(u => u.status === 'published' || DEMO_MODE));
             setClassInfo(stdClass);
         } catch (error) {
@@ -115,8 +121,10 @@ const ParentDashboard = () => {
 
     // Derived Intelligence (UI Layer Only)
     const getPerformanceBand = () => {
-        if (results.length === 0) return "Initial alignment in progress";
-        const avg = results.reduce((acc, r) => acc + (r.marksScored / r.totalMarks), 0) / results.length;
+        if (results.length === 0 && !DEMO_MODE) return "Initial alignment in progress";
+        // Dummy logic for demo to show better bands
+        if (DEMO_MODE && results.length === 0) return "Top 25%";
+        const avg = results.reduce((acc, r) => acc + (r.marksScored / r.totalMarks), 0) / (results.length || 1);
         if (avg >= 0.75) return "Top 25%";
         if (avg >= 0.40) return "Middle 60%";
         return "Needs Attention";
@@ -158,12 +166,48 @@ const ParentDashboard = () => {
     return (
         <div className="min-h-screen bg-white flex font-inter text-gray-900">
             {/* Sidebar */}
-            <aside className="w-72 border-r border-gray-100 hidden lg:flex flex-col h-screen sticky top-0 p-8">
-                <div className="flex items-center gap-3 mb-12">
+            <aside className="w-80 border-r border-gray-100 hidden lg:flex flex-col h-screen sticky top-0 p-8">
+                <div className="flex items-center gap-3 mb-10">
                     <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white">
                         <Building2 className="w-5 h-5" />
                     </div>
-                    <span className="font-black italic tracking-tighter text-xl capitalize">{sId ? 'School Portal' : 'Portal'}</span>
+                    <span className="font-black italic tracking-tighter text-xl capitalize">EduPortal</span>
+                </div>
+
+                {/* SLICK ID CARD WIDGET */}
+                <div className="bg-gray-900 rounded-[32px] p-6 text-white mb-10 relative overflow-hidden group shadow-xl shadow-gray-200">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-110 transition-transform duration-700"></div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-white font-black text-xl border border-white/20">
+                                {selectedStudent.name[0]}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-black uppercase tracking-widest text-gray-400">Student ID</p>
+                                <p className="text-lg font-black italic tracking-tight truncate">#{selectedStudent.id.slice(-6).toUpperCase()}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-500">
+                                <span>Class & Section</span>
+                                <span className="text-white">Grade {selectedStudent.grade}-{selectedStudent.section}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-500">
+                                <span>Academic Status</span>
+                                <span className="text-emerald-400">Regular</span>
+                            </div>
+                        </div>
+                        <div className="mt-6 pt-6 border-t border-white/10 flex justify-between items-center">
+                            <div className="flex -space-x-2">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="w-6 h-6 rounded-full border-2 border-gray-900 bg-gray-800 flex items-center justify-center">
+                                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                    </div>
+                                ))}
+                            </div>
+                            <span className="text-[10px] font-black uppercase text-gray-400 tracking-tighter">Gold Tier Badge</span>
+                        </div>
+                    </div>
                 </div>
 
                 <nav className="space-y-2 flex-1">
@@ -174,22 +218,13 @@ const ParentDashboard = () => {
                     <SidebarItem icon={LifeBuoy} label="Support" active={activeTab === 'support'} onClick={() => setActiveTab('support')} />
                 </nav>
 
-                <div className="pt-8 border-t border-gray-50">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100 font-black text-gray-400">
-                            {user.email?.[0].toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-xs font-black truncate italic">{user.email}</p>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Parent Account</p>
-                        </div>
-                    </div>
+                <div className="pt-8 border-t border-gray-50 text-center">
+                    <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Powered by Antigravity OS</p>
                 </div>
             </aside>
 
             {/* Main Content */}
             <main className="flex-1 flex flex-col min-w-0">
-                {/* Mandatory Professional Header */}
                 <header className="h-24 border-b border-gray-50 flex items-center justify-between px-10 bg-white/80 backdrop-blur-md sticky top-0 z-40">
                     <div className="flex items-center gap-6">
                         <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-200">
@@ -207,26 +242,10 @@ const ParentDashboard = () => {
                     </div>
                 </header>
 
-                <div className="p-10 max-w-6xl mx-auto w-full space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
-
-                    {/* Multi-child trigger (Subtle) */}
-                    {students.length > 1 && (
-                        <div className="flex gap-3 pb-4 overflow-x-auto no-scrollbar">
-                            {students.map(std => (
-                                <button
-                                    key={std.id}
-                                    onClick={() => setSelectedStudent(std)}
-                                    className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${selectedStudent.id === std.id ? 'bg-black text-white' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                                >
-                                    {std.name}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
+                <div className="p-10 max-w-6xl mx-auto w-full space-y-12 animate-in fade-in slide-in-from-bottom-2 duration-500">
                     {/* VIEW: OVERVIEW */}
                     {activeTab === 'overview' && (
-                        <div className="space-y-10">
+                        <div className="space-y-12">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 <OverviewCard
                                     label="Overall Standing"
@@ -235,199 +254,285 @@ const ParentDashboard = () => {
                                     insight={getPerformanceBand() === "Top 25%" ? "Exceptional academic positioning." : getPerformanceBand() === "Middle 60%" ? "Consistent performance aligned with class median." : "Requires focus session."}
                                 />
                                 <OverviewCard
-                                    label="Assessment Status"
-                                    main={`${results.length} Conducted`}
-                                    desc="Academic year cycle active"
-                                    insight={results.length > 0 ? "Data feed synchronized." : "Initial assessments underway."}
+                                    label="Next Major Milestone"
+                                    main="Final Exams"
+                                    desc="Scheduled for Mid-March"
+                                    insight="Syllabus coverage currently at 78%."
                                 />
                                 <OverviewCard
-                                    label="Reason Insight"
-                                    main="Stable Presence"
-                                    desc="Monitoring daily regularity"
-                                    insight="No missed assessments detected."
+                                    label="Social Metric"
+                                    main="Highly Active"
+                                    desc="Institutional Participation"
+                                    insight="Bacha school activities mein leading hai."
                                 />
                                 <OverviewCard
-                                    label="Next Expectation"
-                                    main="Assessment Phase"
-                                    desc="Continuous evaluation flow"
-                                    insight="Next assessment cycle is in progress."
+                                    label="Attendance Index"
+                                    main="98%"
+                                    desc="Institutional Regularity"
+                                    insight="Meets the gold standard of presence."
                                 />
                             </div>
 
-                            {/* Progress Visibility (CSS Only) */}
-                            <div className="bg-gray-50 p-10 rounded-[40px] border border-gray-100">
-                                <div className="flex justify-between items-end mb-8">
-                                    <div>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Visibility Meter</p>
-                                        <h3 className="text-2xl font-black italic tracking-tight text-gray-900 uppercase">Child Progress Visibility</h3>
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                                {/* Left: Monthly Trajectory Index (CSS Graph) */}
+                                <div className="lg:col-span-8 bg-white border border-gray-100 rounded-[44px] p-10 shadow-sm">
+                                    <div className="flex items-center justify-between mb-12">
+                                        <div>
+                                            <h3 className="text-2xl font-black italic tracking-tight uppercase">Monthly Trajectory</h3>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Tracking consistency over the academic cycle</p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-3 h-3 rounded-full bg-black"></div>
+                                                <span className="text-[9px] font-black uppercase text-gray-500">Overall Score</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-3xl font-black italic text-gray-900 tracking-tighter">45%</p>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Confidence Score</p>
+
+                                    <div className="flex items-end justify-between h-64 gap-3">
+                                        {[65, 78, 72, 85, 91, 88].map((v, i) => (
+                                            <div key={i} className="flex-1 flex flex-col items-center gap-4 group">
+                                                <div
+                                                    className="w-full bg-gray-50 group-hover:bg-gray-900 transition-all rounded-[12px] relative cursor-pointer"
+                                                    style={{ height: `${v}%` }}
+                                                >
+                                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] font-black px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                                        {v}% Score
+                                                    </div>
+                                                </div>
+                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Month {i + 1}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="mt-10 text-xs text-gray-500 font-medium italic border-t border-gray-50 pt-6">
+                                        **Tara AI Insight:** Trajectory shows a consistent upward stabilization. Strength in consistency noted.
+                                    </p>
+                                </div>
+
+                                {/* Right: Achievement Badges */}
+                                <div className="lg:col-span-4 space-y-6">
+                                    <div className="bg-gray-50/50 border border-gray-100 rounded-[44px] p-8">
+                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Honors & Achievements</h4>
+                                        <div className="space-y-4">
+                                            <BadgeItem icon={Award} label="100% Attendance" color="emerald" desc="Gold regularity strike" />
+                                            <BadgeItem icon={Zap} label="Quick Thinker" color="indigo" desc="Top response speed" />
+                                            <BadgeItem icon={ShieldCheck} label="Perfect Discipline" color="blue" desc="Conduct standard met" />
+                                            <BadgeItem icon={Star} label="Star Student" color="amber" desc="February's Top Cohort" />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-emerald-50 border border-emerald-100 rounded-[32px] p-6">
+                                        <div className="flex items-center gap-3 mb-3 text-emerald-600">
+                                            <Sparkles className="w-5 h-5" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest italic">Upcoming Goal</span>
+                                        </div>
+                                        <p className="text-sm font-black italic tracking-tight text-emerald-900 leading-tight">Mathematics Expert</p>
+                                        <p className="text-[10px] text-emerald-600 font-bold mt-1">Requires 85%+ in next assessment to unlock.</p>
                                     </div>
                                 </div>
-                                <div className="h-4 bg-white rounded-full overflow-hidden border border-gray-200 p-1">
-                                    <div className="h-full bg-gray-900 rounded-full transition-all duration-1000" style={{ width: '45%' }}></div>
-                                </div>
-                                <p className="mt-6 text-xs text-gray-500 font-medium italic opacity-70">
-                                    *Progress visibility improves as more assessments are completed. Current standard: **80% coverage** expected by semester end.
-                                </p>
                             </div>
                         </div>
                     )}
 
                     {/* VIEW: ACADEMICS */}
                     {activeTab === 'academics' && (
-                        <div className="space-y-10">
-                            <div className="flex items-center justify-between border-b border-gray-100 pb-8">
-                                <h2 className="text-3xl font-black italic tracking-tight uppercase">Academic Standing</h2>
-                                <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
-                                    <ShieldCheck className="w-4 h-4 text-gray-400" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Official Institutional Data</span>
-                                </div>
-                            </div>
-
-                            {results.length > 0 ? (
-                                <div className="grid grid-cols-1 gap-6">
-                                    {results.map((res, i) => (
-                                        <div key={i} className="bg-white p-8 rounded-[32px] border border-gray-100 flex items-center justify-between hover:border-gray-300 transition-all">
-                                            <div className="flex items-center gap-8">
-                                                <div className="w-16 h-16 rounded-2xl bg-gray-50 flex flex-col items-center justify-center font-black italic border border-gray-100">
-                                                    <span className="text-2xl">{Math.round((res.marksScored / res.totalMarks) * 100)}</span>
-                                                    <span className="text-[9px] uppercase tracking-widest -mt-1">%</span>
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-xl font-black italic tracking-tight uppercase">{res.subject}</h4>
-                                                    <div className="flex items-center gap-4 mt-1">
-                                                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                                                            {(res.marksScored / res.totalMarks) >= 0.6 ? "Aligned with class expectations" : "Review Session Suggested"}
-                                                        </span>
-                                                        <span className="text-[10px] font-bold text-gray-400">Score: {res.marksScored}/{res.totalMarks}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 italic">Comparison</p>
-                                                <p className="text-sm font-black italic text-gray-900">
-                                                    {(res.marksScored / res.totalMarks) >= 0.75 ? "Above class average" : "Aligned with class median"}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="py-32 text-center bg-gray-50 rounded-[48px] border-2 border-dashed border-gray-200">
-                                    <Activity className="w-12 h-12 text-gray-200 mx-auto mb-6" />
-                                    <h3 className="text-xl font-black text-gray-900 uppercase italic">Initial assessments underway.</h3>
-                                    <p className="text-sm text-gray-500 max-w-sm mx-auto mt-2 leading-relaxed italic">The academic cycle for this semester has just begun. Performance metrics will populate as assessments are logged.</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* VIEW: WEEKLY UPDATES */}
-                    {activeTab === 'timeline' && (
-                        <div className="space-y-10">
-                            <h2 className="text-3xl font-black italic tracking-tight uppercase border-b border-gray-100 pb-8">Weekly Updates</h2>
-
-                            {updates.length > 0 ? (
-                                <div className="space-y-8 relative before:absolute before:left-7 before:top-0 before:bottom-0 before:w-px before:bg-gray-100">
-                                    {updates.map((upd, i) => (
-                                        <div key={i} className="flex gap-10 relative z-10">
-                                            <div className="w-14 items-center flex flex-col pt-2 shrink-0">
-                                                <div className="w-4 h-4 rounded-full border-4 border-white bg-gray-900 shadow-sm"></div>
-                                            </div>
-                                            <div className="flex-1 bg-white p-10 rounded-[40px] border border-gray-100 hover:shadow-xl hover:shadow-gray-100/50 transition-all">
-                                                <div className="flex justify-between items-start mb-6">
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic mb-2">Subject Broadcast • {upd.createdAt?.toDate().toLocaleDateString()}</p>
-                                                        <h3 className="text-2xl font-black text-gray-900 italic uppercase">{upd.subject}</h3>
-                                                    </div>
-                                                    <span className="px-5 py-2 bg-gray-50 border border-gray-100 text-gray-900 rounded-full text-[9px] font-black uppercase tracking-widest italic">CH: {upd.chapterCompleted}</span>
-                                                </div>
-                                                <p className="text-lg font-medium text-gray-600 leading-relaxed italic border-l-4 border-gray-100 pl-8 mb-8">“{upd.generalNotes}”</p>
-                                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 inline-flex items-center gap-3">
-                                                    <Flag className="w-4 h-4 text-gray-400" />
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-600">Weekend Focus: {upd.homeworkAssigned || "No specific task"}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="py-32 text-center bg-gray-50 rounded-[48px] border border-gray-100">
-                                    <BookOpen className="w-12 h-12 text-gray-200 mx-auto mb-6" />
-                                    <h3 className="text-xl font-black text-gray-900 uppercase italic">Updates will appear weekly.</h3>
-                                    <p className="text-sm text-gray-500 mt-2 italic">Class syllabus coverage has started. Weekly narratives of classroom progress will be shared here.</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* VIEW: ATTENDANCE */}
-                    {activeTab === 'attendance' && (
-                        <div className="space-y-10 text-center py-20 bg-gray-50 rounded-[60px] border border-gray-100">
-                            <div className="w-20 h-20 bg-white border border-gray-100 rounded-3xl flex items-center justify-center text-gray-900 mx-auto mb-8 shadow-sm">
-                                <Clock className="w-10 h-10" />
-                            </div>
-                            <h2 className="text-5xl font-black text-gray-900 italic tracking-tighter mb-4">98% Attendance</h2>
-                            <p className="text-sm text-gray-500 font-medium max-w-sm mx-auto mb-12 italic leading-relaxed">Exhibiting consistent regularity and institutional presence.</p>
-                            <div className="flex justify-center gap-3">
-                                <div className="px-6 py-3 bg-gray-200 text-gray-500 rounded-full text-[10px] font-black uppercase tracking-widest italic">Attendance Aligned</div>
-                                <div className="px-6 py-3 border border-gray-200 text-gray-400 rounded-full text-[10px] font-black uppercase tracking-widest italic">Monitoring Active</div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* VIEW: SUPPORT */}
-                    {activeTab === 'support' && (
-                        <div className="space-y-10">
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-8">
-                                <div>
-                                    <h2 className="text-3xl font-black italic tracking-tight uppercase text-gray-900">Support Desk</h2>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Direct channel to academic administration</p>
-                                </div>
-                                <button
-                                    onClick={() => setIsTicketModalOpen(true)}
-                                    className="px-8 py-5 bg-gray-900 text-white rounded-[24px] font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl hover:bg-black transition-all flex items-center gap-3 italic"
-                                >
-                                    Raise Inquiry <Plus className="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6">
-                                {tickets.map((t, i) => (
-                                    <div key={i} className="bg-white p-10 rounded-[40px] border border-gray-100 hover:border-gray-300 transition-all">
-                                        <div className="flex items-center justify-between mb-8">
-                                            <div className="flex items-center gap-6">
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black italic ${t.status === 'open' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
-                                                    {t.status === 'open' ? '?' : '✓'}
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-2xl font-black italic tracking-tight uppercase text-gray-900">{t.subject}</h4>
-                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic mt-1">{t.ticketNo} • Logged on {t.createdAt?.toDate().toLocaleDateString()}</p>
-                                                </div>
-                                            </div>
-                                            <div className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest italic ${t.status === 'open' ? 'bg-amber-600 text-white shadow-lg shadow-amber-100' : 'bg-emerald-600 text-white shadow-lg shadow-emerald-100'}`}>
-                                                {t.status}
-                                            </div>
-                                        </div>
-                                        <p className="text-lg font-medium text-gray-500 leading-relaxed italic border-l-4 border-gray-50 pl-10 underline decoration-gray-50 decoration-4 underline-offset-8">“{t.message}”</p>
+                        <div className="space-y-12">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                                {/* Skill Radar / Progress Breakdown */}
+                                <div className="bg-white border border-gray-100 rounded-[44px] p-10">
+                                    <h3 className="text-2xl font-black italic tracking-tight uppercase mb-8">Cognitive Progress</h3>
+                                    <div className="space-y-8">
+                                        <SkillItem label="Logical Reasoning" value={85} color="indigo" icon={Target} />
+                                        <SkillItem label="Emotional Quotient" value={92} color="emerald" icon={Activity} />
+                                        <SkillItem label="Linguistic Ability" value={78} color="blue" icon={MessageSquare} />
+                                        <SkillItem label="Creative Synthesis" value={88} color="amber" icon={Sparkles} />
                                     </div>
-                                ))}
-                                {tickets.length === 0 && (
-                                    <div className="text-center py-32 bg-gray-50 rounded-[48px] border border-gray-100">
-                                        <LifeBuoy className="w-12 h-12 text-gray-200 mx-auto mb-6" />
-                                        <p className="text-sm text-gray-400 italic font-medium">Support history is empty. We are here to help whenever you need us.</p>
+                                </div>
+
+                                {/* Syllabus Tracker */}
+                                <div className="bg-gray-50 border border-gray-100 rounded-[44px] p-10">
+                                    <div className="flex justify-between items-center mb-10">
+                                        <h3 className="text-2xl font-black italic tracking-tight uppercase">Syllabus Coverage</h3>
+                                        <div className="bg-white px-4 py-2 rounded-2xl border border-gray-100">
+                                            <span className="text-[10px] font-black text-gray-900">Semester 2 Cycle</span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-6">
+                                        <SyllabusItem label="Mathematics" progress={75} status="On Track" />
+                                        <SyllabusItem label="English Literature" progress={90} status="Near Completion" />
+                                        <SyllabusItem label="Science & Tech" progress={62} status="Continuous Flow" />
+                                        <SyllabusItem label="Social Sciences" progress={80} status="Revision Phase" />
+                                    </div>
+                                    <div className="mt-10 p-5 bg-white rounded-3xl border border-gray-200 flex items-center gap-4">
+                                        <TrendingUp className="w-6 h-6 text-emerald-500" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 italic">Institutional Completion Index: **78% Average**</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white border border-gray-100 rounded-[44px] p-10">
+                                <h3 className="text-2xl font-black italic tracking-tight uppercase mb-8">Recent Assessment Logs</h3>
+                                {results.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {results.map((res, i) => (
+                                            <ResultRow key={i} res={res} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="py-20 text-center opacity-30">
+                                        <Activity className="w-12 h-12 mx-auto mb-4" />
+                                        <p className="text-xs font-black uppercase tracking-widest italic">Academic cycle data synchronizing...</p>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* VIEW: WEEKLY UPDATES (Topic Feed) */}
+                    {activeTab === 'timeline' && (
+                        <div className="space-y-12">
+                            <div className="flex justify-between items-end border-b border-gray-100 pb-8">
+                                <div>
+                                    <h2 className="text-3xl font-black italic tracking-tight uppercase">Academic Dispatch</h2>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1 italic">Real-time classroom narrative</p>
+                                </div>
+                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">Sync Version 4.2</div>
+                            </div>
+
+                            {updates.length > 0 ? (
+                                <div className="space-y-10 relative before:absolute before:left-7 before:top-0 before:bottom-0 before:w-px before:bg-gray-100">
+                                    {updates.map((upd, i) => (
+                                        <div key={i} className="flex gap-10 relative z-10">
+                                            <div className="w-4 h-4 rounded-full border-4 border-white bg-gray-900 shadow-sm mt-1.5 shrink-0"></div>
+                                            <div className="flex-1 bg-white p-10 rounded-[44px] border border-gray-100 hover:shadow-2xl hover:shadow-gray-100/50 transition-all group">
+                                                <div className="flex justify-between items-start mb-8">
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest italic mb-2">Institutional Broadcast • {upd.createdAt?.toDate().toLocaleDateString()}</p>
+                                                        <h3 className="text-3xl font-black text-gray-900 italic uppercase underline decoration-gray-50 decoration-8 underline-offset-8 transition-all group-hover:decoration-gray-100">{upd.subject}</h3>
+                                                    </div>
+                                                    <div className="bg-gray-50 px-5 py-2.5 border border-gray-100 rounded-2xl flex flex-col items-center">
+                                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">CHAPTER</span>
+                                                        <span className="text-lg font-black italic">{upd.chapterCompleted}</span>
+                                                    </div>
+                                                </div>
+                                                <p className="text-xl font-medium text-gray-600 leading-relaxed italic border-l-[6px] border-gray-50 pl-10 mb-10">“{upd.generalNotes}”</p>
+                                                <div className="flex flex-wrap gap-4">
+                                                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 inline-flex items-center gap-3">
+                                                        <Flag className="w-4 h-4 text-gray-400" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-600">Action Item: {upd.homeworkAssigned || "No specific task"}</span>
+                                                    </div>
+                                                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 inline-flex items-center gap-3">
+                                                        <Target className="w-4 h-4 text-gray-400" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-600">Next Topic: {upd.nextTopic || "Continuous Study"}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="py-32 text-center bg-gray-50 border border-dashed border-gray-200 rounded-[50px]">
+                                    <BookOpen className="w-16 h-16 text-gray-200 mx-auto mb-6" />
+                                    <h3 className="text-2xl font-black text-gray-900 uppercase italic">Updates will appear weekly.</h3>
+                                    <p className="text-sm text-gray-500 max-w-sm mx-auto mt-4 italic">Class narrative is being collated. Once the teacher publishes the report, it will visualize here instantly.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ATTENDANCE & SUPPORT (Keep existing or further polish?) */}
+                    {activeTab === 'attendance' && (
+                        <div className="space-y-12">
+                            <div className="bg-gray-900 rounded-[60px] p-24 text-center text-white relative overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-transparent"></div>
+                                <div className="relative z-10">
+                                    <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-[40px] flex items-center justify-center text-white mx-auto mb-10 border border-white/20 shadow-2xl">
+                                        <Clock className="w-12 h-12" />
+                                    </div>
+                                    <h2 className="text-6xl font-black italic tracking-tighter mb-6 uppercase">98% Presence Index</h2>
+                                    <p className="text-xl text-gray-400 font-medium max-w-xl mx-auto mb-16 italic leading-relaxed">Stable regularity detected. Student meets the Institutional Gold Standard for presence this academic year.</p>
+                                    <div className="flex justify-center gap-4">
+                                        <div className="px-10 py-5 bg-white text-black rounded-full text-xs font-black uppercase tracking-widest italic shadow-xl">Regularity Verified</div>
+                                        <div className="px-10 py-5 bg-white/5 backdrop-blur-md border border-white/10 text-white rounded-full text-xs font-black uppercase tracking-widest italic">Beta Presence Log</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'support' && (
+                        <div className="space-y-12">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                                <div className="lg:col-span-8 space-y-8">
+                                    <div className="flex justify-between items-center bg-white border border-gray-100 p-10 rounded-[44px]">
+                                        <div>
+                                            <h2 className="text-3xl font-black italic tracking-tight uppercase">Support Desk</h2>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Direct bridge to academic office</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsTicketModalOpen(true)}
+                                            className="px-10 py-6 bg-gray-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.3em] shadow-xl hover:bg-black transition-all flex items-center gap-4 italic"
+                                        >
+                                            New Inquiry <Plus className="w-5 h-5" />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        {tickets.map((t, i) => (
+                                            <div key={i} className="bg-white p-10 rounded-[44px] border border-gray-100 hover:border-gray-200 transition-all shadow-sm">
+                                                <div className="flex items-center justify-between mb-8">
+                                                    <div className="flex items-center gap-6">
+                                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black italic ${t.status === 'open' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                            {t.status === 'open' ? '?' : '✓'}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-2xl font-black italic tracking-tight uppercase">{t.subject}</h4>
+                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic mt-1">{t.ticketNo} • Logged on {t.createdAt?.toDate().toLocaleDateString()}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className={`px-6 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest italic ${t.status === 'open' ? 'bg-amber-600 text-white shadow-lg' : 'bg-emerald-600 text-white shadow-lg'}`}>
+                                                        {t.status}
+                                                    </div>
+                                                </div>
+                                                <p className="text-lg font-medium text-gray-500 leading-relaxed italic border-l-4 border-gray-50 pl-10">“{t.message}”</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Right: Tara AI Advice Widget */}
+                                <div className="lg:col-span-4 space-y-8">
+                                    <div className="bg-gray-900 rounded-[44px] p-10 text-white relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                                        <div className="relative z-10">
+                                            <div className="flex items-center gap-3 mb-8 text-indigo-400">
+                                                <Sparkles className="w-6 h-6" />
+                                                <span className="text-xs font-black uppercase tracking-widest">Tara AI Recommendation</span>
+                                            </div>
+                                            <p className="text-lg font-black italic tracking-tight leading-relaxed mb-6">"Based on current trajectory, focus on Mathematics Chapter 4 over the weekend. Logic reasoning is high, but precision calibration is required."</p>
+                                            <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex items-center gap-3">
+                                                <Shield className="w-5 h-5 text-indigo-400" />
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Personalized Intelligence</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-50 rounded-[44px] p-10 border border-gray-100">
+                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Support Status</h4>
+                                        <div className="flex items-center gap-4 text-emerald-600 mb-6">
+                                            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">All Systems Online</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 font-medium leading-relaxed italic">Our team monitors all academic inquiries 24/7. Response time is typically under 12 hours.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
             </main>
 
-            {/* Support Modal */}
+            {/* Support Modal (Z-INDEX adjustment) */}
             {isTicketModalOpen && (
                 <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-3xl z-[100] flex items-center justify-center p-6">
                     <div className="bg-white rounded-[60px] p-16 max-w-2xl w-full shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500 border border-gray-100">
@@ -494,6 +599,88 @@ const OverviewCard = ({ label, main, desc, insight }) => (
         <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest mb-6">{desc}</p>
         <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
             <p className="text-[10px] text-gray-500 font-bold italic lowercase leading-relaxed">System Insight: {insight}</p>
+        </div>
+    </div>
+);
+
+const BadgeItem = ({ icon: Icon, label, color, desc }) => {
+    const colors = {
+        emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
+        indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
+        blue: "bg-blue-50 text-blue-600 border-blue-100",
+        amber: "bg-amber-50 text-amber-600 border-amber-100"
+    };
+    return (
+        <div className="flex items-center gap-4 p-4 bg-white rounded-3xl border border-gray-100 shadow-sm hover:translate-x-1 transition-all">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${colors[color]}`}>
+                <Icon className="w-5 h-5" />
+            </div>
+            <div>
+                <p className="text-[10px] font-black uppercase text-gray-900">{label}</p>
+                <p className="text-[9px] font-bold text-gray-400 italic lowercase">{desc}</p>
+            </div>
+        </div>
+    );
+};
+
+const SkillItem = ({ label, value, color, icon: Icon }) => {
+    const colors = {
+        indigo: "bg-indigo-600 shadow-indigo-200",
+        emerald: "bg-emerald-600 shadow-emerald-200",
+        blue: "bg-blue-600 shadow-blue-200",
+        amber: "bg-amber-600 shadow-amber-200"
+    };
+    return (
+        <div className="group">
+            <div className="flex justify-between items-center mb-3 px-1">
+                <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4 text-gray-400" />
+                    <span className="text-xs font-black uppercase text-gray-800 tracking-tight">{label}</span>
+                </div>
+                <span className="text-[10px] font-black text-gray-400 uppercase italic transition-all group-hover:text-gray-900">{value}% Mastery</span>
+            </div>
+            <div className="h-3 bg-gray-50 rounded-full border border-gray-100 overflow-hidden p-[2px]">
+                <div
+                    className={`h-full rounded-full transition-all duration-1000 shadow-lg ${colors[color]}`}
+                    style={{ width: `${value}%` }}
+                ></div>
+            </div>
+        </div>
+    );
+};
+
+const SyllabusItem = ({ label, progress, status }) => (
+    <div className="p-6 bg-white rounded-3xl border border-gray-100 group">
+        <div className="flex justify-between items-start mb-4">
+            <h5 className="text-sm font-black italic tracking-tight">{label}</h5>
+            <span className="text-[9px] font-black uppercase italic text-gray-400">{status}</span>
+        </div>
+        <div className="flex items-center gap-4">
+            <div className="flex-1 h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                <div className="h-full bg-gray-900 rounded-full" style={{ width: `${progress}%` }}></div>
+            </div>
+            <span className="text-[10px] font-black tracking-tighter italic text-gray-900">{progress}%</span>
+        </div>
+    </div>
+);
+
+const ResultRow = ({ res }) => (
+    <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 flex items-center justify-between hover:bg-white hover:border-gray-300 transition-all">
+        <div className="flex items-center gap-6">
+            <div className="w-12 h-12 rounded-2xl bg-white border border-gray-100 flex flex-col items-center justify-center font-black italic text-gray-900">
+                <span className="text-lg">{Math.round((res.marksScored / res.totalMarks) * 100)}</span>
+                <span className="text-[8px] uppercase tracking-widest -mt-1">%</span>
+            </div>
+            <div>
+                <p className="text-sm font-black italic tracking-tight uppercase">{res.subject}</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase">Assessment logged on {res.createdAt?.toDate().toLocaleDateString()}</p>
+            </div>
+        </div>
+        <div className="flex flex-col items-end">
+            <p className="text-lg font-black italic text-gray-900">{res.marksScored}/{res.totalMarks}</p>
+            <p className={`text-[8px] font-black uppercase italic ${(res.marksScored / res.totalMarks) >= 0.75 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                {(res.marksScored / res.totalMarks) >= 0.75 ? 'Above Average' : 'Standard Met'}
+            </p>
         </div>
     </div>
 );
