@@ -85,7 +85,7 @@ const TeacherTests = () => {
                 schoolId,
                 classId: activeClassId,
                 totalMarks: points.total,
-                createdBy: userData.teacherId
+                createdBy: userData.uid
             });
 
             // 2. Create Result Docs

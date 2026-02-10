@@ -407,6 +407,24 @@ export const getAnnouncements = async (schoolId, classId = null) => {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
+export const getStudentResults = async (studentId) => {
+    const q = query(collection(db, 'results'), where("studentId", "==", studentId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const getTeacher = async (teacherId) => {
+    if (!teacherId) return null;
+    const docSnap = await getDoc(doc(db, 'teachers', teacherId));
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+};
+
+export const getClass = async (classId) => {
+    if (!classId) return null;
+    const docSnap = await getDoc(doc(db, 'classes', classId));
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+};
+
 export const sendEmail = async (to, subject, html) => {
     return addDoc(collection(db, 'mail'), {
         to,
