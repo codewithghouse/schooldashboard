@@ -37,9 +37,12 @@ export const createSchool = async (schoolData) => {
             createdAt: serverTimestamp()
         });
 
-        await updateDoc(doc(db, "users", adminUid), {
-            schoolId: schoolRef.id
-        });
+        // Use setDoc with merge to ensure the user doc exists and has the role
+        await setDoc(doc(db, "users", adminUid), {
+            schoolId: schoolRef.id,
+            role: 'admin',
+            email: auth.currentUser.email
+        }, { merge: true });
 
         return schoolRef.id;
     } catch (error) {

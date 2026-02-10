@@ -14,42 +14,54 @@ service cloud.firestore {
       return isSignedIn() && userDoc().data.role == "admin";
     }
 
+    function schoolId() {
+      return userDoc().data.schoolId;
+    }
+
     /* USERS */
     match /users/{uid} {
       allow read, create: if isSignedIn() && request.auth.uid == uid;
-      // REQUIRED for schoolId linking after creation
-      allow update: if isSignedIn() && request.auth.uid == uid;
+      allow update: if isSignedIn() && request.auth.uid == uid; // REQUIRED for schoolId linking
       allow delete: if false;
     }
 
-    /* ACADEMIC COLLECTIONS — WIDE ADMIN ACCESS */
-    // To resolve persistent LIST rule reliability issues, admins are granted 
-    // broad access. Isolation is handled at the query level in the frontend.
-    
+    /* SCHOOLS */
     match /schools/{id} {
-      allow read, write: if isSignedIn() && isAdmin();
+      // Relax create permission to allow first-time school registration
+      allow create: if isSignedIn();
+      allow read, write: if isSignedIn() && (isAdmin() || resource.data.adminUid == request.auth.uid);
     }
 
-    match /classes/{id} {
-      allow read, write: if isSignedIn() && isAdmin();
-      // Allow Teachers to read/update their specific classes
+    /* CLASSES — FINAL FIX for ERR-02 */
+    match /classes/{classId} {
+      // Admin can READ ALL classes (Bypass complex list checks)
+      allow list, get: if isSignedIn() && isAdmin();
+
+      // Admin can create/update/delete
+      allow create, update, delete: if isSignedIn() && isAdmin();
+      
+      // Teacher Read/Update access
       allow read, update: if isSignedIn() && userDoc().data.role == "teacher";
     }
 
+    /* TEACHERS — FINAL FIX */
+    match /teachers/{uid} {
+      allow read, write: if isSignedIn() && isAdmin();
+      allow read, update: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    /* STUDENTS — FINAL FIX */
     match /students/{id} {
       allow read, write: if isSignedIn() && isAdmin();
     }
 
-    match /teachers/{id} {
-      allow read, write: if isSignedIn() && isAdmin();
-    }
-
-    match /invites/{id} {
+    /* INVITES — FINAL FIX */
+    match /invites/{inviteId} {
       allow create: if isSignedIn() && isAdmin();
       allow read, update, delete: if false;
     }
 
-    /* ACADEMIC DATA */
+    /* ACADEMIC DATA — FINAL FIX */
     match /syllabus/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
     match /weeklyUpdates/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
     match /announcements/{id} { allow read, write: if isSignedIn() && (isAdmin() || userDoc().data.role == "teacher"); }
