@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { inviteTeacher, getTeachers, getClasses, deleteTeacher, updateTeacherDetails } from '../../lib/services';
+import { inviteTeacher, getTeachers, getClasses, deleteTeacher, updateTeacherDetails, addClass } from '../../lib/services';
 import { Plus, CheckCircle, Clock, Trash2, ShieldCheck, Mail, Edit3 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
